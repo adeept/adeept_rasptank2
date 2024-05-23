@@ -20,7 +20,7 @@ MOTOR_M3_IN2 =  10      #Define the negative pole of M3
 MOTOR_M4_IN1 =  8       #Define the positive pole of M4
 MOTOR_M4_IN2 =  9       #Define the negative pole of M4
 
-M1_Direction   = 1
+M1_Direction   = -1
 M2_Direction  = -1
 
 left_forward  = 1
@@ -31,7 +31,8 @@ right_backward= 1
 
 pwn_A = 0
 pwm_B = 0
-FREQ = 1000
+# FREQ = 1000
+FREQ = 50
 # motor1,motor2,motor3,motor4,pwm_motor  = None
 
 
@@ -41,7 +42,7 @@ Motor interface.
        |     |
        |     |
        |     |
-    M1 |_____| M2
+    M2 |_____| M1
 '''
 
 def map(x,in_min,in_max,out_min,out_max):
@@ -107,62 +108,78 @@ def Motor(channel,direction,motor_speed):
     motor4.throttle = speed
 
 def move(speed, direction, turn, radius=0.6):   # 0 < radius <= 1  
-    #eg: move(100, 1, "no")--->forward
+    #eg: move(100, 1, "mid")--->forward
     #    move(100, 1, "left")---> left forward
-    #speed:0~100. direction:1/-1. turn: "left", "right", "no".
+    #speed:0~100. direction:1. turn: "left", "right", "mid".
+    #speed:0~100. direction:-1. turn: "no".
     if speed == 0:
         motorStop() #all motor stop.
     else:
         if direction == 1: 			# forward
             if turn == 'left': 		# left forward
-                Motor(1, M1_Direction, speed*radius)
-                Motor(2, M2_Direction, speed)
-            elif turn == 'right': 	# right forward
                 Motor(1, M1_Direction, speed)
-                Motor(2, M2_Direction, speed*radius)
+                Motor(2, -M2_Direction, speed)
+            elif turn == 'right': 	# right forward
+                Motor(1, -M1_Direction, speed)
+                Motor(2, M2_Direction, speed)
             else: 					# forward  (mid)
                 Motor(1, M1_Direction, speed)
                 Motor(2, M2_Direction, speed)
         elif direction == -1: 		# backward
-            if turn == 'left': 		# right backward
-                Motor(1, -M1_Direction, speed*radius)
-                Motor(2, -M2_Direction, speed)
-            elif turn == 'right': 	# right backward
-                Motor(1, -M1_Direction, speed)
-                Motor(2, -M2_Direction, speed*radius)
-            else: 					# backward (mid)
-                Motor(1, -M1_Direction, speed)
-                Motor(2, -M2_Direction, speed)
+            Motor(1, -M1_Direction, speed)
+            Motor(2, -M2_Direction, speed)
 
 def destroy():
     motorStop()
     pwm_motor.deinit()
 
-# 用于视频巡线时的电机速度控制。
-def video_Tracking_Move(speed, direction):   # 0 < radius <= 1  
-    #eg: move(100, 1, "no")--->forward
+def trackingMove(speed, direction, turn, radius=0.6):   # 0 < radius <= 1  
+    #eg: move(100, 1, "mid")--->forward
     #    move(100, 1, "left")---> left forward
-    #speed:0~100. direction:1/-1. turn: "left", "right", "no".
+    #speed:0~100. direction:1. turn: "left", "right", "mid".
+    #speed:0~100. direction:-1. turn: "no".
     if speed == 0:
         motorStop() #all motor stop.
     else:
         if direction == 1: 			# forward
-            Motor(1, M1_Direction, speed)
-            Motor(2, M2_Direction, speed)
+            if turn == 'left': 		# left forward
+                Motor(1, M1_Direction, speed)
+                Motor(2, 0, speed)
+            elif turn == 'right': 	# right forward
+                Motor(1, 0, speed)
+                Motor(2, M2_Direction, speed)
+            else: 					# forward  (mid)
+                Motor(1, M1_Direction, speed)
+                Motor(2, M2_Direction, speed)
         elif direction == -1: 		# backward
             Motor(1, -M1_Direction, speed)
             Motor(2, -M2_Direction, speed)
+
+# # 用于视频巡线时的电机速度控制。
+# def video_Tracking_Move(speed, direction):   # 0 < radius <= 1  
+#     #eg: move(100, 1, "no")--->forward
+#     #    move(100, 1, "left")---> left forward
+#     #speed:0~100. direction:1/-1. turn: "left", "right", "no".
+#     if speed == 0:
+#         motorStop() #all motor stop.
+#     else:
+#         if direction == 1: 			# forward
+#             Motor(1, M1_Direction, speed)
+#             Motor(2, M2_Direction, speed)
+#         elif direction == -1: 		# backward
+#             Motor(1, -M1_Direction, speed)
+#             Motor(2, -M2_Direction, speed)
             
 
 if __name__ == '__main__':
     try:
         speed_set = 20
         setup()
-        move(speed_set, -1, 'no', 0.8)
+        move(speed_set, -1, 'mid', 0.8)
         time.sleep(3)
         motorStop()
         time.sleep(1)
-        move(speed_set, 1, 'no', 0.8)
+        move(speed_set, 1, 'mid', 0.8)
         time.sleep(3)
         motorStop()
     except KeyboardInterrupt:

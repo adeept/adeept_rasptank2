@@ -17,6 +17,11 @@ import random
 # When the motor occupies pins 9-15 on the PCA9685, 
 # the servo can only use pins 0-8.
 
+i2c = busio.I2C(SCL, SDA)
+# Create a simple PCA9685 class instance.
+pwm_servo = PCA9685(i2c, address=0x5f) #default 0x40
+
+pwm_servo.frequency = 50
 
 # pwm_servo = Adafruit_PCA9685.PCA9685()
 # pwm_servo.set_pwm_freq(50)
@@ -38,6 +43,17 @@ pwm_servo = None
 class ServoCtrl(threading.Thread):
 
     def __init__(self, *args, **kwargs):
+
+
+        
+        # global i2c,pwm_servo
+        self.i2c = busio.I2C(SCL, SDA)
+        # Create a simple PCA9685 class instance.
+        self.pwm_servo = PCA9685(self.i2c, address=0x5f) #default 0x40
+
+        self.pwm_servo.frequency = 50
+
+        
         self.sc_direction = [1,1,1,1, 1,1,1,1]
         # # If motors are not used, 16 servos need to be controlled at the same time.
         # self.sc_direction = [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] 
@@ -84,22 +100,22 @@ class ServoCtrl(threading.Thread):
         self.__flag.clear()
 
     # def setup(self):
-    # 	global i2c,pwm_servo
-    # 	i2c = busio.I2C(SCL, SDA)
-    # 	# Create a simple PCA9685 class instance.
-    # 	pwm_servo = PCA9685(i2c, address=0x5f) #default 0x40
+    #     # global i2c,pwm_servo
+    #     self.i2c = busio.I2C(SCL, SDA)
+    #     # Create a simple PCA9685 class instance.
+    #     self.pwm_servo = PCA9685(i2c, address=0x5f) #default 0x40
 
-    # 	pwm_servo.frequency = 50
+    #     self.pwm_servo.frequency = 50
     # 	print("setup")
 
     def set_angle(self,ID, angle):
         # global i2c,pwm_servo
-        i2c = busio.I2C(SCL, SDA)
+        # i2c = busio.I2C(SCL, SDA)
         # Create a simple PCA9685 class instance.
-        pwm_servo = PCA9685(i2c, address=0x5f) #default 0x40
+        # pwm_servo = PCA9685(i2c, address=0x5f) #default 0x40
 
-        pwm_servo.frequency = 50
-        servo_angle = servo.Servo(pwm_servo.channels[ID], min_pulse=500, max_pulse=2400,actuation_range=180)
+        # pwm_servo.frequency = 50
+        servo_angle = servo.Servo(self.pwm_servo.channels[ID], min_pulse=500, max_pulse=2400,actuation_range=180)
         servo_angle.angle = angle
 
 

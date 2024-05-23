@@ -33,10 +33,13 @@ def colorWipe( R, G, B):
         strip.show()
 
 def run():
-    strip.setPixelColor(0, Color(0, 0, 255))  # No. 1 light is blue.
-    strip.setPixelColor(1, Color(0, 255, 0))  # No. 2 light is green.
-    strip.setPixelColor(2, Color(255, 0, 0))  # No. 3 light is red.
-    strip.show()
+    colorWipe(0, 0, 255)  # blue.
+    time.sleep(2)
+
+    colorWipe(0, 255, 0)  # green.
+    time.sleep(2)
+
+    colorWipe(255, 0, 0)  # red.
     time.sleep(2)
     colorWipe(0, 0, 0)  # All lights off.
     time.sleep(1)

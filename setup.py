@@ -93,9 +93,7 @@ commands_pip_1 = [
 "sudo pip3 install flask_cors",
 "sudo pip3 install imutils zmq pybase64 psutil",
 "sudo pip3 install websockets",
-"sudo pip3 install adafruit-circuitpython-ads7830",
-"sudo pip3 install SpeechRecognition",
-"sudo pip3 install pocketsphinx"
+"sudo pip3 install adafruit-circuitpython-ads7830"
 ]
 commands_pip_2 = [
 "sudo pip3 install adafruit-circuitpython-motor --break-system-packages",
@@ -104,9 +102,7 @@ commands_pip_2 = [
 "sudo pip3 install flask_cors --break-system-packages",
 "sudo pip3 install imutils zmq pybase64 psutil --break-system-packages",
 "sudo pip3 install websockets --break-system-packages",
-"sudo pip3 install adafruit-circuitpython-ads7830 --break-system-packages",
-"sudo pip3 install SpeechRecognition --break-system-packages",
-"sudo pip3 install pocketsphinx --break-system-packages"
+"sudo pip3 install adafruit-circuitpython-ads7830 --break-system-packages"
 ]
 mark_pip = 0
 OS_version = check_raspbain_version()
@@ -172,7 +168,7 @@ try:
     os.system("sudo touch /"+ user_home +"/startup.sh")
     with open("/"+ user_home +"/startup.sh",'w') as file_to_write:
         #you can choose how to control the robot
-        file_to_write.write("#!/bin/sh\nsleep 5\nsudo python3 " + thisPath + "adeept_picar-b2/web/webServer.py")
+        file_to_write.write("#!/bin/sh\nsleep 5\nsudo python3 " + thisPath + "adeept_rasptank2/web/webServer.py")
 #       file_to_write.write("#!/bin/sh\nsudo python3 " + thisPath + "/server/server.py")
 except:
     pass

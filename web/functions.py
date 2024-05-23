@@ -201,16 +201,16 @@ class Functions(threading.Thread):
 		status_left = track_line_left.value
 		#print('R%d   M%d   L%d'%(status_right,status_middle,status_left))
 		if status_middle == 0:
-			scGear.moveAngle(2, 0)
-			move.move(80,1,"mid")
+			# scGear.moveAngle(2, 0)
+			move.trackingMove(80,1,"mid")
 		elif status_left == 0:
-			scGear.moveAngle(2, 30)
-			move.move(80,1,"left")
+			# scGear.moveAngle(2, 30)
+			move.trackingMove(80,1,"left")
 		elif status_right == 0:
-			scGear.moveAngle(2,-30)
-			move.move(80,1,"left")
+			# scGear.moveAngle(2,-30)
+			move.trackingMove(80,1,"right")
 		else:
-			move.move(0,1,"no")
+			move.trackingMove(0,1,"no")
 		print(status_left,status_middle,status_right)
 		time.sleep(0.1)
 
@@ -275,45 +275,46 @@ class Functions(threading.Thread):
 
 	def automaticProcessing(self):
 		print('automaticProcessing')
-		scGear.moveAngle(1, 0)
+		# scGear.moveAngle(1, 0)
 		dist = self.distRedress()
 		print(dist, "cm")
 		time.sleep(0.2)
 		if dist >= 40:			# More than 40CM, go straight.
-			scGear.moveAngle(2, 0)
+			# scGear.moveAngle(2, 0)
 			move.move(80, 1, "mid")
 			print("Forward")
-		# More than 20cm and less than 40cm, detect the distance between the left and right sides.
+		# More than 20cm and less than 40cm, speed reduced.
 		elif dist > 20 and dist < 50:	
-			scGear.moveAngle(1, 30)
-			move.move(0, 1, "mid")
-			time.sleep(0.3)
+			# scGear.moveAngle(1, 30)
+			move.move(0, 1, "left")
+			time.sleep(0.2)
 			distLeft = self.distRedress()
 			self.scanList[0] = distLeft
 
 			# Go in the direction where the detection distance is greater.
-			scGear.moveAngle(1, -30)
-			time.sleep(0.3)
+			# scGear.moveAngle(1, -30)
+			move.move(0, 1, "right")
+			time.sleep(0.4)
 			distRight = self.distRedress()
 			self.scanList[1] = distRight
 			print(self.scanList)
-			scGear.moveAngle(1, 0)
+			# scGear.moveAngle(1, 0)
 			if self.scanList[0] >= self.scanList[1]:
-				scGear.moveAngle(2, 30)
-				time.sleep(0.3)
+				# scGear.moveAngle(2, 30)
+				# time.sleep(0.3)
 				move.move(80,1,"left")
 				print("Left")
-				time.sleep(1)
+				time.sleep(0.5)
 			else:
-				scGear.moveAngle(2, -30)
-				time.sleep(0.3)
+				# scGear.moveAngle(2, -30)
+				# time.sleep(0.3)
 				move.move(80, 1, "right")
 				print("Right")
-				time.sleep(1)
+				time.sleep(0.2)
 		else:		# The distance is less than 20cm, back.
 			move.move(80, -1, "mid")
 			print("Back")
-			time.sleep(1)
+			time.sleep(0.8)
 
 
 	# def steadyProcessing(self):
