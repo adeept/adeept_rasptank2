@@ -127,11 +127,11 @@ def functionSelect(command_input, response):
     #         response['data'] = radar_send
     #         time.sleep(0.3)
 
-    # if 'findColor' == command_input:
+    if 'findColor' == command_input:
         # if OLED_connection:
         #     screen.screen_show(5,'FindColor')
         # if modeSelect == 'PT':
-        #     flask_app.modeselect('findColor')
+        flask_app.modeselect('findColor')
 
     if 'motionGet' == command_input:
         # if OLED_connection:

@@ -155,20 +155,30 @@ def trackingMove(speed, direction, turn, radius=0.6):   # 0 < radius <= 1
             Motor(1, -M1_Direction, speed)
             Motor(2, -M2_Direction, speed)
 
-# # 用于视频巡线时的电机速度控制。
-# def video_Tracking_Move(speed, direction):   # 0 < radius <= 1  
-#     #eg: move(100, 1, "no")--->forward
-#     #    move(100, 1, "left")---> left forward
-#     #speed:0~100. direction:1/-1. turn: "left", "right", "no".
-#     if speed == 0:
-#         motorStop() #all motor stop.
-#     else:
-#         if direction == 1: 			# forward
-#             Motor(1, M1_Direction, speed)
-#             Motor(2, M2_Direction, speed)
-#         elif direction == -1: 		# backward
-#             Motor(1, -M1_Direction, speed)
-#             Motor(2, -M2_Direction, speed)
+
+# 用于视频巡线时的电机速度控制。
+# Used for motor speed control during video line patrol.
+def video_Tracking_Move(speed, direction, turn, radius=0):   # 0 < radius <= 1  
+    #eg: move(100, 1, "mid")--->forward
+    #    move(100, 1, "left")---> left forward
+    #speed:0~100. direction:1. turn: "left", "right", "mid".
+    #speed:0~100. direction:-1. turn: "no".
+    if speed == 0:
+        motorStop() #all motor stop.
+    else:
+        if direction == 1: 			# forward
+            if turn == 'left': 		# left forward
+                Motor(1, M1_Direction, speed)
+                Motor(2, M2_Direction*radius, speed)
+            elif turn == 'right': 	# right forward
+                Motor(1, M1_Direction*radius, speed)
+                Motor(2, M2_Direction, speed)
+            else: 					# forward  (mid)
+                Motor(1, M1_Direction, speed)
+                Motor(2, M2_Direction, speed)
+        elif direction == -1: 		# backward
+            Motor(1, -M1_Direction, speed)
+            Motor(2, -M2_Direction, speed)
             
 
 if __name__ == '__main__':

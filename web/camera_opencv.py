@@ -154,7 +154,7 @@ class CVThread(threading.Thread):
                 cv2.rectangle(imgInput,(int(self.box_x-self.radius),int(self.box_y+self.radius)),(int(self.box_x+self.radius),int(self.box_y-self.radius)),(255,255,255),1)
 
         elif self.CVMode == 'findlineCV':
-            CVThread.scGear.moveAngle(2, -45) # The camera looks down.
+            CVThread.scGear.moveAngle(4, -30) # The camera looks down.
 
             if frameRender:
                 imgInput = cv2.cvtColor(imgInput, cv2.COLOR_BGR2GRAY)
@@ -254,9 +254,11 @@ class CVThread(threading.Thread):
         global findLineMove,tracking_servo_status,FLCV_Status
         # # if posInput:
         
-        if FLCV_Status == 0:    
-            CVThread.scGear.moveAngle(0, 0) # car center. (servo_num, deflection angle)
-            CVThread.scGear.moveAngle(1, 0) # camera centered. (servo_num, deflection angle)
+        if FLCV_Status == 0:    # Before video line patrol, initialize the position of the robotic arm.
+            CVThread.scGear.moveAngle(0, 0) 
+            CVThread.scGear.moveAngle(1, 0)
+            CVThread.scGear.moveAngle(2, 0)
+            CVThread.scGear.moveAngle(3, 0)
 
             FLCV_Status = 1
         if posInput != None and findLineMove == 1:
@@ -273,20 +275,15 @@ class CVThread(threading.Thread):
                 tracking_servo_status = 1 #  right. -1/0/1: left/mid/right. In which direction the track may be offset out of the tracking area.
                 #turnRight
                 if CVRun:
-                    CVThread.scGear.moveAngle(0, -30) # car center. (servo_num, deflection angle)
-                    move.video_Tracking_Move(turn_speed, 1) # 'no'/'right':turn Right, turn_speed：left wheel speed, 0.2:turn_speed*0.2 = right wheel speed
+                    move.video_Tracking_Move(turn_speed, 1,"right") # 'no'/'right':turn Right, turn_speed：left wheel speed, 0.2:turn_speed*0.2 = right wheel speed
                 else:
-                    CVThread.scGear.moveAngle(0, 0)
                     move.motorStop() # stop
 
             elif posInput < 180: # turnLeft.
                 tracking_servo_status = -1 # left
                 if CVRun:
-                    CVThread.scGear.moveAngle(0, 30) # car center. (servo_num, deflection angle)
-                    move.video_Tracking_Move(turn_speed, 1) # 'no'/'right':turn Right, turn_speed：left wheel speed, 0.2:turn_speed*0.2 = right wheel speed
-                
+                    move.video_Tracking_Move(turn_speed, 1,"left") # 'no'/'right':turn Right, turn_speed：left wheel speed, 0.2:turn_speed*0.2 = right wheel speed
                 else:
-                    CVThread.scGear.moveAngle(0, 0)
                     move.motorStop() # stop.
                         
             else:
@@ -295,17 +292,16 @@ class CVThread(threading.Thread):
                     # In the range of 180-480, adjust the motor speed difference according to the offset.
                     error = 320-posInput
                     outv = int(round((pid.GenOut(error)),0))
-                    coef = map(abs(outv), -160, 160, -30, 30) # 
+                    coef = map(abs(outv), 0, 160, 0, 1.0) # 
                     # print(outv)
-                    # if outv >0: 
+                    if outv >0: 
 
-                    CVThread.scGear.moveAngle(0, coef) # car center. (servo_num, deflection angle)
-                    move.video_Tracking_Move(turn_speed, 1) # 'no'/'right':turn Right, turn_speed：left wheel speed, 0.2:turn_speed*0.2 = right wheel speed
+                        # CVThread.scGear.moveAngle(0, coef) # car center. (servo_num, deflection angle)
+                        move.video_Tracking_Move(turn_speed, 1,"left",radius=(1.0-coef)) # 'no'/'right':turn Right, turn_speed：left wheel speed, 0.2:turn_speed*0.2 = right wheel speed
 
-                    # elif outv <=0: 
-                    #     move.video_Tracking_Move(1, left_forward, forward_speed)
-                    #     move.video_Tracking_Move(forward_speed, 1, forward_speed)
-                    #     move.motor_right(1, right_forward, int(forward_speed*coef))
+                    elif outv <=0: 
+                        move.video_Tracking_Move(turn_speed, 1,"right",radius=(1.0-coef)) # 'no'/'right':turn Right, turn_speed：left wheel speed, 0.2:turn_speed*0.2 = right wheel speed
+
                 else: 
                     move.motorStop() # stop
                 pass
@@ -314,40 +310,40 @@ class CVThread(threading.Thread):
             move.motorStop() # stop.
             FLCV_Status = -1
             if tracking_servo_status == -1 : # -1/0/1: left/mid/right. rotation left.
-                angle_Limit = CVThread.Tracking_sc.returnServoAngle(0) # Servo deflection angle.
-                print(angle_Limit)
-                if angle_Limit > 20: # The deflection angle is limited to within 30 degrees.
-                    CVThread.scGear.moveAngle(0, -30)
-                    move.video_Tracking_Move(turn_speed, 1)
+                # angle_Limit = CVThread.Tracking_sc.returnServoAngle(0) # Servo deflection angle.
+                # print(angle_Limit)
+                # if angle_Limit > 20: # The deflection angle is limited to within 30 degrees.
+                #     CVThread.scGear.moveAngle(0, -30)
+                move.video_Tracking_Move(turn_speed, 1,"right")
                     # move.motor_left(1, left_forward, turn_speed)  # the car turn left.
                     # move.motor_right(1, right_forward, int(turn_speed*0.1))
-                    if self.tracking_servo_left_mark == 0 or self.servo_left_stop == 0: # stop servo rotation left.
-                        CVThread.Tracking_sc.stopWiggle() 
-                        self.tracking_servo_left_mark = 1
-                        self.servo_left_stop = 1
+                #     if self.tracking_servo_left_mark == 0 or self.servo_left_stop == 0: # stop servo rotation left.
+                #         CVThread.Tracking_sc.stopWiggle() 
+                #         self.tracking_servo_left_mark = 1
+                #         self.servo_left_stop = 1
 
-                if self.tracking_servo_left_mark == 0: # servo rotation left.
-                    CVThread.Tracking_sc.singleServo(1, 1, 10) # (servo_num, direction,rotation_speed),direction: 1:left, -1:right
-                    self.tracking_servo_left_mark = 1 # The servos will turn continuously and only need to be run once.
-                    self.servo_left_stop = 0
+                # if self.tracking_servo_left_mark == 0: # servo rotation left.
+                #     CVThread.Tracking_sc.singleServo(1, 1, 10) # (servo_num, direction,rotation_speed),direction: 1:left, -1:right
+                #     self.tracking_servo_left_mark = 1 # The servos will turn continuously and only need to be run once.
+                #     self.servo_left_stop = 0
 
             elif tracking_servo_status == 1 : # rotation right
-                angle_Limit = CVThread.Tracking_sc.returnServoAngle(0)
-                # print(angle_Limit)
-                if angle_Limit < -20: # The deflection angle is limited to within 30 degrees.
-                    CVThread.scGear.moveAngle(0, 30)
-                    move.video_Tracking_Move(turn_speed, 1)
+                # angle_Limit = CVThread.Tracking_sc.returnServoAngle(0)
+                # # print(angle_Limit)
+                # if angle_Limit < -20: # The deflection angle is limited to within 30 degrees.
+                #     CVThread.scGear.moveAngle(0, 30)
+                    move.video_Tracking_Move(turn_speed, 1,"left")
                     # move.motor_left(1, left_forward, int(turn_speed*0.1)) # the car turn right.
                     # move.motor_right(1, right_forward, turn_speed)
-                    if self.tracking_servo_right_mark == 0 or self.servo_right_stop == 0: # stop servo rotation right.
-                        CVThread.Tracking_sc.stopWiggle() 
-                        self.tracking_servo_right_mark = 1
-                        self.servo_right_stop = 1
+                #     if self.tracking_servo_right_mark == 0 or self.servo_right_stop == 0: # stop servo rotation right.
+                #         CVThread.Tracking_sc.stopWiggle() 
+                #         self.tracking_servo_right_mark = 1
+                #         self.servo_right_stop = 1
 
-                if self.tracking_servo_right_mark == 0: # servo rotation right.
-                    CVThread.Tracking_sc.singleServo(0, -1, 1) # (servo_num, direction,rotation_speed),direction: 1:left, -1:right
-                    self.tracking_servo_right_mark = 1 # The servos will turn continuously and only need to be run once.
-                    self.servo_right_stop = 0
+                # if self.tracking_servo_right_mark == 0: # servo rotation right.
+                #     CVThread.Tracking_sc.singleServo(0, -1, 1) # (servo_num, direction,rotation_speed),direction: 1:left, -1:right
+                #     self.tracking_servo_right_mark = 1 # The servos will turn continuously and only need to be run once.
+                #     self.servo_right_stop = 0
 
             else:  # no track ahead. tracking_servo_status==0
                 pass

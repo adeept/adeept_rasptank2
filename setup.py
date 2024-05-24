@@ -12,6 +12,8 @@ user_home = os.popen('getent passwd %s | cut -d: -f 6'%username).readline().stri
 curpath = os.path.realpath(__file__)
 thisPath = "/" + os.path.dirname(curpath)
 
+print(thisPath)
+
 def replace_num(file,initial,new_num):
     newline=""
     str_num=str(new_num)
@@ -91,6 +93,8 @@ commands_pip_1 = [
 "sudo pip3 install adafruit-circuitpython-pca9685",
 "sudo pip3 install flask",
 "sudo pip3 install flask_cors",
+"sudo pip3 install numpy",
+"sudo pip3 install pyzmq",
 "sudo pip3 install imutils zmq pybase64 psutil",
 "sudo pip3 install websockets",
 "sudo pip3 install adafruit-circuitpython-ads7830"
@@ -100,6 +104,8 @@ commands_pip_2 = [
 "sudo pip3 install adafruit-circuitpython-pca9685 --break-system-packages",
 "sudo pip3 install flask --break-system-packages",
 "sudo pip3 install flask_cors --break-system-packages",
+"sudo pip3 install numpy --break-system-packages",
+"sudo pip3 install pyzmq --break-system-packages",
 "sudo pip3 install imutils zmq pybase64 psutil --break-system-packages",
 "sudo pip3 install websockets --break-system-packages",
 "sudo pip3 install adafruit-circuitpython-ads7830 --break-system-packages"
@@ -137,7 +143,7 @@ for x in range(3):
         if os.system(command) != 0:
             print("Error running installation step 3")
             mark_2 = 1
-    if mark_2 == 0:
+    if mark_3 == 0:
         break
 
 # commands_3 = [
@@ -168,7 +174,7 @@ try:
     os.system("sudo touch /"+ user_home +"/startup.sh")
     with open("/"+ user_home +"/startup.sh",'w') as file_to_write:
         #you can choose how to control the robot
-        file_to_write.write("#!/bin/sh\nsleep 5\nsudo python3 " + thisPath + "adeept_rasptank2/web/webServer.py")
+        file_to_write.write("#!/bin/sh\nsleep 5\nsudo python3 " + thisPath + "/web/webServer.py")
 #       file_to_write.write("#!/bin/sh\nsudo python3 " + thisPath + "/server/server.py")
 except:
     pass
@@ -189,4 +195,4 @@ replace_num('/etc/rc.local','fi','fi\n/'+ user_home +'startup.sh start')
 #     os.system("sudo cp -f "+ thisPath  +"/adeept_rasptank/server/config.txt //etc/config.txt")
 print('The program in Raspberry Pi has been installed, disconnected and restarted. \nYou can now power off the Raspberry Pi to install the camera and driver board (Robot HAT). \nAfter turning on again, the Raspberry Pi will automatically run the program to set the servos port signal to turn the servos to the middle position, which is convenient for mechanical assembly.')
 print('restarting...')
-os.system("sudo reboot")
+# os.system("sudo reboot")
