@@ -1,4 +1,4 @@
-# Adeept 4WD Smart Car Kit for Raspberry Pi PiCar-B
+# Adeept RaspTank Smart Car Kit for Raspberry Pi
 
 ## About This Product
 
