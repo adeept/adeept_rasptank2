@@ -1,5 +1,5 @@
 # Adeept RaspTank-V4 Smart Car Kit for Raspberry Pi
-
+Adeept RaspTank is an open source intelligent robotics product for artificial intelligence, robotics enthusiasts and students. This product is based on the Raspberry Pi motherboard using the python language and is compatible with the following Raspberry Pi models: 3B,3B+,4,5, etc.
 
 ## Resources Links
 
