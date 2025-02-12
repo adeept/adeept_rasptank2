@@ -555,7 +555,6 @@ if __name__ == '__main__':
     flask_app.startthread()
 
     try:
-        WS2812_mark = 1
         WS2812=robotLight.Adeept_SPI_LedPixel(16, 255)
         if WS2812.check_spi_state() != 0:
             WS2812.start()
@@ -578,27 +577,18 @@ if __name__ == '__main__':
             break
         except Exception as e:
             print(e)
-            if WS2812_mark:
-                wa2812.set_all_led_color_data(0,0,0)
-                wa2812.show()
-            else:
-                pass
+            WS2812.set_all_led_color_data(0,0,0)
+            WS2812.show()
 
         try:
-            if WS2812_mark == 1:
-                wa2812.set_all_led_color_data(0,80,255)
-                wa2812.show()
-            else:
-                pass
+            WS2812.set_all_led_color_data(0,80,255)
+            WS2812.show()
         except:
             pass
     try:
         asyncio.get_event_loop().run_forever()
     except Exception as e:
         print(e)
-        if WS2812_mark:
-            wa2812.set_all_led_color_data(0,0,0)
-            wa2812.show()
-        else:
-            pass
+        WS2812.set_all_led_color_data(0,0,0)
+        WS2812.show()
         move.destroy()
