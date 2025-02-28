@@ -12,7 +12,7 @@ Adeept RaspTank is an open source intelligent robotics product for artificial in
 
 ## Getting Support or Providing Advice
 
-Adeept provides free and responsive product and technical support, including but not limited to:   \
+Adeept provides free and responsive product and technical support, including but not limited to:   
 * Product quality issues 
 * Product use and build issues
 * Questions regarding the technology employed in our products for learning and education
