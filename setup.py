@@ -97,6 +97,7 @@ commands_pip_1 = [
 "sudo pip3 install pyzmq",
 "sudo pip3 install imutils zmq pybase64 psutil",
 "sudo pip3 install websockets==13.0",
+"sudo pip3 install rpi_ws281x",
 "sudo pip3 install adafruit-circuitpython-ads7830"
 ]
 commands_pip_2 = [
@@ -108,6 +109,7 @@ commands_pip_2 = [
 "sudo pip3 install pyzmq --break-system-packages",
 "sudo pip3 install imutils zmq pybase64 psutil --break-system-packages",
 "sudo pip3 install websockets==13.0 --break-system-packages",
+"sudo pip3 install rpi_ws281x --break-system-packages",
 "sudo pip3 install adafruit-circuitpython-ads7830 --break-system-packages"
 ]
 mark_pip = 0
