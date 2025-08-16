@@ -170,19 +170,19 @@ def robotCtrl(command_input):
         move.motorStop()
 
     elif 'armUp' == command_input:
-        scGear.singleServo(0,  1, 2)
+        scGear.singleServo(0, -1, 2)
 
     elif 'armDown' == command_input:
-        scGear.singleServo(0, -1, 2)
+        scGear.singleServo(0,  1, 2)
 
     elif 'armStop' in command_input:
         scGear.stopWiggle()
 
     elif 'handUp' == command_input:
-        scGear.singleServo(1, -1, 2)
+        scGear.singleServo(1,  1, 2)
 
     elif 'handDown' == command_input:
-        scGear.singleServo(1,  1, 2)
+        scGear.singleServo(1, -1, 2)
 
     elif 'handStop' in command_input:
         scGear.stopWiggle()

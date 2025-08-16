@@ -214,16 +214,16 @@ def robotCtrl(command_input, response):
             move.motorStop()
 
     elif 'armUp' == command_input: #servo A
-        H1_sc.singleServo(0, 1, 2)
+        H1_sc.singleServo(0, -1, 2)
     elif 'armDown' == command_input:
-        H1_sc.singleServo(0,-1, 2)
+        H1_sc.singleServo(0, 1, 2)
     elif 'armStop' in command_input:
         H1_sc.stopWiggle()
 
     elif 'handUp' == command_input: # servo B
-        H2_sc.singleServo(1, -1, 2)
+        H2_sc.singleServo(1, 1, 2)
     elif 'handDown' == command_input:
-        H2_sc.singleServo(1,1, 2)
+        H2_sc.singleServo(1, -1, 2)
     elif 'handStop' in command_input:
         H2_sc.stopWiggle()
 
