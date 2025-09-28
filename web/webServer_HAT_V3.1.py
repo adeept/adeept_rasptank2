@@ -23,6 +23,21 @@ import websockets
 import json
 import app
 
+
+# List of rainbow colors (ROYGBIV)
+COLORS = {
+    'black': (0, 0, 0),
+    'red': (255, 0, 0),
+    'orange': (255, 127, 0),
+    'yellow': (255, 255, 0),
+    'green': (0, 255, 0),
+    'blue': (0, 0, 255),
+    'indigo': (75, 0, 130),
+    'violet': (148, 0, 211),
+    'white': (255, 255, 255),
+}
+
+
 OLED_connection = 0
 
 functionMode = 0
@@ -30,19 +45,27 @@ speed_set = 100
 rad = 0.5
 turnWiggle = 60
 
-controler = RPIservo.ServoCtrl()
-#controler.start()
-
-ARM = RPIservo.ServoCtrlThread("ARM", controler, 0, 90, 1)
-HAND = RPIservo.ServoCtrlThread("HAND", controler, 1, 90, -1)
-WRIST = RPIservo.ServoCtrlThread("WRIST", controler, 2, 90, 1)
+##################################
+####### Servo Controlers  ########
+##################################
+SERVO_CTRL = RPIservo.ServoCtrl()
+ARM = RPIservo.ServoCtrlThread("ARM", SERVO_CTRL, 0, 90, 1)
+HAND = RPIservo.ServoCtrlThread("HAND", SERVO_CTRL, 1, 90, -1)
+WRIST = RPIservo.ServoCtrlThread("WRIST", SERVO_CTRL, 2, 90, 1)
 # 3 is detroyed using 5 instead
-CLAW = RPIservo.ServoCtrlThread("CLAW", controler, 5, 90, 1)
-CAMERA = RPIservo.ServoCtrlThread("CAMERA", controler, 4, 90, -1)
-
+CLAW = RPIservo.ServoCtrlThread("CLAW", SERVO_CTRL, 5, 90, 1)
+CAMERA = RPIservo.ServoCtrlThread("CAMERA", SERVO_CTRL, 4, 90, -1)
 SERVOS = [ARM, HAND, WRIST, CLAW, CAMERA]
 
-MOVEMENT=move.MovementCtrlThread(-1, -1)
+##################################
+######## Motor Controler #########
+##################################
+MOVEMENT = move.MovementCtrlThread(-1, -1)
+
+##################################
+######### Led Controler ##########
+##################################
+LED_CTRL = robotLight.LedCtrl(count = 14, bright = 20, color = COLORS['yellow'])
 
 controls = {
   # Servos
@@ -332,8 +355,7 @@ if __name__ == '__main__':
     switch.switchSetup()
     switch.set_all_switch_off()
     
-    move.setup()
-    WS2812_mark = None
+    #move.setup()
 
     HOST = ''
     PORT = 10223                              #Define port serial 
@@ -343,50 +365,31 @@ if __name__ == '__main__':
     global flask_app
     flask_app = app.webapp()
     flask_app.startthread()
-
     try:
-        WS2812_mark = 1
-        WS2812=robotLight.Adeept_SPI_LedPixel(16, 255)
-        if WS2812.check_spi_state() != 0:
-            WS2812.start()
-            WS2812.breath(70,70,255)
-        else:
-            WS2812.led_close()
-    except KeyboardInterrupt:
-        WS2812.led_close()
-        pass
-
-    while  1:
-        wifi_check()
-        try:                  #Start server,waiting for client
-            start_server = websockets.serve(main_logic, '0.0.0.0', 8888)
-            asyncio.get_event_loop().run_until_complete(start_server)
-            print('waiting for connection...')
-            # print('...connected from :', addr)
-            break
+        LED_CTRL.set_all_led_rgb(COLORS['orange'])
+        while  1:
+            wifi_check()
+            try:                  #Start server,waiting for client
+                start_server = websockets.serve(main_logic, '0.0.0.0', 8888)
+                asyncio.get_event_loop().run_until_complete(start_server)
+                print('waiting for connection...')
+                break
+            except Exception as e:
+                LED_CTRL.set_all_led_rgb(COLORS['red'])
+                print('connection error...')
+                print(e)
+                
+                
+        LED_CTRL.set_all_led_rgb(COLORS['green'])
+        print('start main loop...')
+        try:
+            asyncio.get_event_loop().run_forever()
         except Exception as e:
             print(e)
-            if WS2812_mark:
-                WS2812.set_all_led_color_data(0,0,0)
-                WS2812.show()
-            else:
-                pass
-
-        try:
-            if WS2812_mark == 1:
-                WS2812.set_all_led_color_data(0,80,255)
-                WS2812.show()
-            else:
-                pass
-        except:
-            pass
-    try:
-        asyncio.get_event_loop().run_forever()
-    except Exception as e:
-        print(e)
-        if WS2812_mark:
-            WS2812.set_all_led_color_data(0,0,0)
-            WS2812.show()
-        else:
-            pass
+            LED_CTRL.set_all_led_rgb(COLORS['red'])
+            move.destroy()
+    except KeyboardInterrupt:
+        print('program stopped...')
         move.destroy()
+        LED_CTRL.stop()
+        exit(0);

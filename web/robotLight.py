@@ -10,6 +10,7 @@ from rpi_ws281x import *
 import threading
 import spidev
 import numpy
+import colorsys
 from numpy import sin, cos, pi
 def check_rpi_model():
     _, result = run_command("cat /proc/device-tree/model |awk '{print $3}'")
@@ -159,6 +160,137 @@ class RobotWS2812(threading.Thread):
             pass
 
 
+class LedCtrl(threading.Thread):
+    def __init__(self, count = 8, bright = 255, sequence='GRB', bus = 0, device = 0, color = [0, 0, 0]):
+        self.set_led_type(sequence)
+        self.set_led_count(count)
+        self.set_led_brightness(bright)
+        self.__initialize(bus, device)
+        self.lightMode = 'none'
+        self.colorBreathR = color[0]
+        self.colorBreathG = color[1]
+        self.colorBreathB = color[2]
+        self.breathSteps = 10
+        
+        self.set_all_led_rgb(color)
+        
+        super().__init__()
+        self.__flag = threading.Event()
+        self.__flag.clear()
+        self.start()
+        
+    def __initialize(self, bus = 0, device = 0):
+        self.bus = bus
+        self.device = device
+        try:
+            self.spi = spidev.SpiDev()
+            self.spi.open(self.bus, self.device)
+            self.spi.mode = 0
+            self.led_init_state = 1
+        except OSError as e:
+            print("Please check the configuration in /boot/firmware/config.txt.")
+            if self.bus == 0:
+                print("You can turn on the 'SPI' in 'Interface Options' by using 'sudo raspi-config'.")
+                print("Or make sure that 'dtparam=spi=on' is not commented, then reboot the Raspberry Pi. Otherwise spi0 will not be available.")
+            else:
+                print("Please add 'dtoverlay=spi{}-2cs' at the bottom of the /boot/firmware/config.txt, then reboot the Raspberry Pi. otherwise spi{} will not be available.".format(self.bus, self.bus))
+            self.stop()
+            raise e
+            
+    def set_led_type(self, rgb_type):
+        try:
+            led_type = ['RGB','RBG','GRB','GBR','BRG','BGR']
+            led_type_offset = [0x06,0x09,0x12,0x21,0x18,0x24]
+            index = led_type.index(rgb_type)
+            self.led_red_offset = (led_type_offset[index]>>4) & 0x03
+            self.led_green_offset = (led_type_offset[index]>>2) & 0x03
+            self.led_blue_offset = (led_type_offset[index]>>0) & 0x03
+            return index
+        except ValueError:
+            self.led_red_offset = 1
+            self.led_green_offset = 0
+            self.led_blue_offset = 2
+            return -1
+    
+    def set_led_count(self, count):
+        self.led_count = count
+        self.led_color = [0,0,0] * self.led_count
+        self.led_original_color = [0,0,0] * self.led_count
+        
+    def set_led_brightness(self, brightness):
+        self.led_brightness = brightness
+        for i in range(self.led_count):
+            self.set_led_rgb_data(i, self.led_original_color)
+    
+    def reset(self):
+        self.set_all_led_rgb([0,0,0])
+        
+    def set_all_led_rgb(self, color):
+        for i in range(self.led_count):
+            self.set_led_rgb_data(i, color) 
+        self.show()
+
+    def set_led_rgb_data(self, index, color):
+        self.set_ledpixel(index, color[0], color[1], color[2])   
+    
+    def set_ledpixel(self, index, r, g, b):
+        p = [0,0,0]
+        p[self.led_red_offset] = round(r * self.led_brightness / 255)
+        p[self.led_green_offset] = round(g * self.led_brightness / 255)
+        p[self.led_blue_offset] = round(b * self.led_brightness / 255)
+        self.led_original_color[index*3+self.led_red_offset] = r
+        self.led_original_color[index*3+self.led_green_offset] = g
+        self.led_original_color[index*3+self.led_blue_offset] = b
+        for i in range(3):
+            self.led_color[index*3+i] = p[i]
+            
+    def write_ws2812_numpy8(self):
+        d = numpy.array(self.led_color).ravel()        #Converts data into a one-dimensional array
+        tx = numpy.zeros(len(d)*8, dtype=numpy.uint8)  #Each RGB color has 8 bits, each represented by a uint8 type data
+        for ibit in range(8):                          #Convert each bit of data to the data that the spi will send
+            tx[7-ibit::8]=((d>>ibit)&1)*0x78 + 0x80    #T0H=1,T0L=7, T1H=5,T1L=3   #0b11111000 mean T1(0.78125us), 0b10000000 mean T0(0.15625us)  
+        if self.bus == 0:
+            self.spi.xfer(tx.tolist(), int(8/1.25e-6))         #Send color data at a frequency of 6.4Mhz
+        else:
+            self.spi.xfer(tx.tolist(), int(8/1.0e-6))          #Send color data at a frequency of 8Mhz
+    
+    def write_ws2812_numpy4(self):
+        d=numpy.array(self.led_color).ravel()
+        tx=numpy.zeros(len(d)*4, dtype=numpy.uint8)
+        for ibit in range(4):
+            tx[3-ibit::4]=((d>>(2*ibit+1))&1)*0x60 + ((d>>(2*ibit+0))&1)*0x06 + 0x88 
+        if self.bus == 0:
+            self.spi.xfer(tx.tolist(), int(4/1.25e-6))         
+        else:
+            self.spi.xfer(tx.tolist(), int(4/1.0e-6))       
+        
+    def show(self, mode = 1):
+        if mode == 1:
+            write_ws2812 = self.write_ws2812_numpy8
+        else:
+            write_ws2812 = self.write_ws2812_numpy4
+        write_ws2812()
+        
+    def stop(self):
+        self.reset()
+        self.spi.close()
+            
+    ##################################
+    ####### Thread Management ########
+    ##################################
+    def resume(self):
+        self.__flag.set()
+
+    def pause(self):
+        self.lightMode = 'none'
+        self.set_all_led_color_data(0,0,0)
+        self.__flag.clear()  
+    
+    def run(self):
+        while 1:
+            self.__flag.wait()
+            self.lightChange()
+            pass
 
 
 
@@ -175,9 +307,11 @@ class Adeept_SPI_LedPixel(threading.Thread):
         self.breathSteps = 10
         #self.spi_gpio_info()
         self.set_all_led_color(0,0,0)
+        
         super(Adeept_SPI_LedPixel, self).__init__(*args, **kwargs)
         self.__flag = threading.Event()
         self.__flag.clear()
+        
     def led_begin(self, bus = 0, device = 0):
         self.bus = bus
         self.device = device
@@ -484,7 +618,20 @@ class RobotLight(threading.Thread):
         self.setRGBColor(1, 0,0,0)
         self.setRGBColor(2, 0,0,0)
 
-
+LED_CONFIGURATION = {
+    "LEFT_HIGH_1":  2, 
+    "LEFT__HIGH_2": 3, 
+    "LEFT__HIGH_3": 4, 
+    "LEFT_LOW_1":   7, 
+    "LEFT_LOW_2":   6, 
+    "LEFT_LOW_3":   5,
+    "RIGHT_HIGH_1": 13, 
+    "RIGHT__HIGH_2":12, 
+    "RIGHT__HIGH_3":11, 
+    "RIGHT_LOW_1":  8, 
+    "RIGHT_LOW_2":  9, 
+    "RIGHT_LOW_3":  10,
+}
 
 if __name__ == '__main__':
     import time
@@ -496,37 +643,56 @@ if __name__ == '__main__':
     led = Adeept_SPI_LedPixel(8, 255)              # Use MOSI for /dev/spidev0 to drive the lights
     try:
         if led.check_spi_state() != 0:
-            led.set_led_count(8)
-            led.set_all_led_color_data(255, 0, 0)
-            led.show()
-            time.sleep(0.5)
-            led.set_all_led_rgb_data([0, 255, 0])
-            led.show()
-            time.sleep(0.5)
-            led.set_all_led_color(0, 0, 255)
-            time.sleep(0.5)
-            led.set_all_led_rgb([0, 255, 255])
-            time.sleep(0.5)
+            # led.set_led_count(8)
+            # led.set_all_led_color_data(255, 0, 0)
+            # led.show()
+            # time.sleep(0.5)
+            # led.set_all_led_rgb_data([0, 255, 0])
+            # led.show()
+            # time.sleep(0.5)
+            # led.set_all_led_color(0, 0, 255)
+            # time.sleep(0.5)
+            # led.set_all_led_rgb([0, 255, 255])
+            # time.sleep(0.5)
 
-            led.set_led_count(12)
-            led.set_all_led_color_data(255, 255, 0)
-            for i in range(255):
-                led.set_led_brightness(i)
-                led.show()
-                time.sleep(0.005)
-            for i in range(255):
-                led.set_led_brightness(255-i)
-                led.show()
-                time.sleep(0.005)
+            led.set_led_count(14)
+            # led.set_all_led_color_data(255, 255, 0)
+            # for i in range(255):
+                # led.set_led_brightness(i)
+                # led.show()
+                # time.sleep(0.005)
+            # for i in range(255):
+                # led.set_led_brightness(255-i)
+                # led.show()
+                # time.sleep(0.005)
                   
             led.set_led_brightness(20)
+            keys = list(colors.keys())
+            #nb_keys = len(keys)
             while True:
-                for j in range(255):
-                    for i in range(led.led_count):
-                        led.set_led_rgb_data(i, led.wheel((round(i * 255 / led.led_count) + j)%256))
-                    led.show()
-                    time.sleep(0.002)
+                #for j in range(led.led_count):
+                    #for i in range(led.led_count):
+                for color in list(colors.values()):
+                    for j in ('HIGH_1', 'HIGH_2', 'HIGH_3', 'LOW_1', 'LOW_2', 'LOW_3'):
+                        keys = list(filter(lambda x: isinstance(x, str) and x.endswith(j), LED_CONFIGURATION))
+                        for i in keys:
+                            # led.set_led_rgb_data(i, led.wheel((round(i * 255 / led.led_count) + j)%256))
+                            # led.set_led_rgb_data(i, [int(i * 255 / led.led_count),
+                                                     # int(i * 255 / led.led_count),
+                                                     # int(i * 255 / led.led_count)])
+                            #index = (i + j) % nb_keys
+                            #led.set_led_rgb_data(i, colors[keys[index]])
+                            led.set_led_rgb_data(LED_CONFIGURATION[i], color)
+                        led.show()
+                        time.sleep(0.1)
+                        for i in keys:
+                            led.set_led_rgb_data(LED_CONFIGURATION[i], colors['black'])
+                        led.show()
         else:
+            led.set_all_led_color_data(0,0,0)
+            led.show()
             led.led_close()
     except KeyboardInterrupt:
+        led.set_all_led_color_data(0,0,0)
+        led.show()
         led.led_close()
