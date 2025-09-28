@@ -28,7 +28,7 @@ pca.frequency = 50
 # range, but the default is to use 180 degrees. You can specify the expected range if you wish:
 # servo7 = servo.Servo(pca.channels[7], actuation_range=135)
 def set_angle(ID, angle):
-    servo_angle = servo.Servo(pca.channels[ID], min_pulse=500, max_pulse=2400,actuation_range=180)
+    servo_angle = servo.Servo(pca.__channels[ID], min_pulse=500, max_pulse=2400, actuation_range=180)
     servo_angle.angle = angle
 '''
 # You can also specify the movement fractionally.

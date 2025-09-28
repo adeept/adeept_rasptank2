@@ -47,13 +47,13 @@ pwm_motor.frequency = 50
 #  pwm_motor.channels[7].duty_cycle = 0xFFFF
 
 #  motor11 = motor.DCMotor(pca.channels[5], pca.channels[6])
-motor1 = motor.DCMotor(pwm_motor.channels[MOTOR_M1_IN1],pwm_motor.channels[MOTOR_M1_IN2] )
+motor1 = motor.DCMotor(pwm_motor.__channels[MOTOR_M1_IN1], pwm_motor.__channels[MOTOR_M1_IN2])
 motor1.decay_mode = (motor.SLOW_DECAY)
-motor2 = motor.DCMotor(pwm_motor.channels[MOTOR_M2_IN1],pwm_motor.channels[MOTOR_M2_IN2] )
+motor2 = motor.DCMotor(pwm_motor.__channels[MOTOR_M2_IN1], pwm_motor.__channels[MOTOR_M2_IN2])
 motor2.decay_mode = (motor.SLOW_DECAY)
-motor3 = motor.DCMotor(pwm_motor.channels[MOTOR_M3_IN1],pwm_motor.channels[MOTOR_M3_IN2] )
+motor3 = motor.DCMotor(pwm_motor.__channels[MOTOR_M3_IN1], pwm_motor.__channels[MOTOR_M3_IN2])
 motor3.decay_mode = (motor.SLOW_DECAY)
-motor4 = motor.DCMotor(pwm_motor.channels[MOTOR_M4_IN1],pwm_motor.channels[MOTOR_M4_IN2] )
+motor4 = motor.DCMotor(pwm_motor.__channels[MOTOR_M4_IN1], pwm_motor.__channels[MOTOR_M4_IN2])
 motor4.decay_mode = (motor.SLOW_DECAY)
 #  motorStop()
 

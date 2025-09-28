@@ -56,11 +56,11 @@ class MovementCtrlThread():
         self.pwm_motor = PCA9685(i2c, address=0x5f) #default 0x40
         self.pwm_motor.frequency = FREQ
         
-        self.motor1 = motor.DCMotor(pwm_motor.channels[MOTOR_M1_IN1],pwm_motor.channels[MOTOR_M1_IN2] )
+        self.motor1 = motor.DCMotor(pwm_motor.__channels[MOTOR_M1_IN1], pwm_motor.__channels[MOTOR_M1_IN2])
         self.motor1.decay_mode = (motor.SLOW_DECAY)
         self.motor1_direction = motor1_direction
         
-        self.motor2 = motor.DCMotor(pwm_motor.channels[MOTOR_M2_IN1],pwm_motor.channels[MOTOR_M2_IN2] )
+        self.motor2 = motor.DCMotor(pwm_motor.__channels[MOTOR_M2_IN1], pwm_motor.__channels[MOTOR_M2_IN2])
         self.motor2.decay_mode = (motor.SLOW_DECAY)
         self.motor2_direction = motor2_direction
         
@@ -107,13 +107,13 @@ def setup():#Motor initialization
 
     pwm_motor.frequency = FREQ
 
-    motor1 = motor.DCMotor(pwm_motor.channels[MOTOR_M1_IN1],pwm_motor.channels[MOTOR_M1_IN2] )
+    motor1 = motor.DCMotor(pwm_motor.__channels[MOTOR_M1_IN1], pwm_motor.__channels[MOTOR_M1_IN2])
     motor1.decay_mode = (motor.SLOW_DECAY)
-    motor2 = motor.DCMotor(pwm_motor.channels[MOTOR_M2_IN1],pwm_motor.channels[MOTOR_M2_IN2] )
+    motor2 = motor.DCMotor(pwm_motor.__channels[MOTOR_M2_IN1], pwm_motor.__channels[MOTOR_M2_IN2])
     motor2.decay_mode = (motor.SLOW_DECAY)
-    motor3 = motor.DCMotor(pwm_motor.channels[MOTOR_M3_IN1],pwm_motor.channels[MOTOR_M3_IN2] )
+    motor3 = motor.DCMotor(pwm_motor.__channels[MOTOR_M3_IN1], pwm_motor.__channels[MOTOR_M3_IN2])
     motor3.decay_mode = (motor.SLOW_DECAY)
-    motor4 = motor.DCMotor(pwm_motor.channels[MOTOR_M4_IN1],pwm_motor.channels[MOTOR_M4_IN2] )
+    motor4 = motor.DCMotor(pwm_motor.__channels[MOTOR_M4_IN1], pwm_motor.__channels[MOTOR_M4_IN2])
     motor4.decay_mode = (motor.SLOW_DECAY)
 
 def motorStop():#Motor stops

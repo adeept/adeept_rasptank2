@@ -25,7 +25,7 @@ class ServoCtrlThread(threading.Thread):
     
     def __init__(self, name, controler, channel_number, initPos, direction):
         self.__name = name
-        self.__channel = controler.pwm_servo.channels[channel_number]
+        self.__channel = controler.pwm_servo.__channels[channel_number]
         self.sc_direction = direction
         self.initPos = initPos
         self.ingGoal = initPos
@@ -252,7 +252,7 @@ class ServoCtrl(threading.Thread):
         self.__flag.clear()
 
     def set_angle(self,ID, angle):
-        servo_angle = servo.Servo(self.pwm_servo.channels[ID], min_pulse=500, max_pulse=2400,actuation_range=180)
+        servo_angle = servo.Servo(self.pwm_servo.__channels[ID], min_pulse=500, max_pulse=2400, actuation_range=180)
         servo_angle.angle = angle
 
   
