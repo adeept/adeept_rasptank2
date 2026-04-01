@@ -20,7 +20,7 @@ try:
 except:
 	print("Couldn't import OpenCV, you need to install it first.")
 
-OSD_X = 0#1
+OSD_X = 0
 OSD_Y = 0
 advanced_OSD = 0
 
@@ -55,11 +55,8 @@ def global_init():
 
 global_init()
 
-
-########>>>>>VIDEO<<<<<########
 def RGB_to_Hex(r, g, b):
 	return ('#'+str(hex(r))[-2:]+str(hex(g))[-2:]+str(hex(b))[-2:]).replace('x','0').upper()
-
 
 def run_open():
     script_path = 'Footage-GUI.py'
@@ -67,122 +64,6 @@ def run_open():
     print('stdout:', result.stdout)
     print('stderr:', result.stderr)
 
-def getposHsv(event, x, y, flags, param):
-	if event==cv2.EVENT_LBUTTONDOWN:
-		print("HSV is", HSVimg[y, x])
-		# findColorSet 172 21 69
-		tcpClicSock.send(('findColorSet %s %s %s'%(HSVimg[y, x][0], HSVimg[y, x][1], HSVimg[y, x][2])).encode())
-		getBGR = source[y, x]
-		var_R.set(getBGR[2])
-		var_G.set(getBGR[1])
-		var_B.set(getBGR[0])
-		canvas_show.config(bg = RGB_to_Hex(int(var_R.get()), int(var_G.get()), int(var_B.get())))
-
-
-def get_FPS():
-	global frame_num, fps
-	while 1:
-		try:
-			time.sleep(1)
-			fps = frame_num
-			frame_num = 0
-		except:
-			time.sleep(1)
-
-
-def advanced_OSD_add(draw_on, X, Y):#1
-	error_X = X*10
-	error_Y = Y*6-2
-	#if error_Y > 0:
-	X_s = int(200+120-120*math.cos(math.radians(error_Y)))
-	Y_s = int(240+120*math.sin(math.radians(error_Y))-error_X*3)
-
-	X_e = int(320+120*math.cos(math.radians(error_Y)))
-	Y_e = int(240-120*math.sin(math.radians(error_Y))-error_X*3)
-	cv2.line(draw_on,(X_s,Y_s),(X_e,Y_e),(0,255,0),2)
-	cv2.putText(draw_on,('horizontal line'),(X_e+10,Y_e), font, 0.5,(0,255,0),1,cv2.LINE_AA)
-
-	cv2.line(draw_on,(X_s,Y_s+270),(X_e,Y_e+270),(0,255,0),2)
-	cv2.putText(draw_on,('A_Down'),(X_e+10,Y_e+270), font, 0.5,(0,255,0),1,cv2.LINE_AA)
-
-	cv2.line(draw_on,(X_s,Y_s-270),(X_e,Y_e-270),(0,255,0),2)
-	cv2.putText(draw_on,('A_Up'),(X_e+10,Y_e-270), font, 0.5,(0,255,0),1,cv2.LINE_AA)
-
-	X_s_short = int(260+60-60*math.cos(math.radians(error_Y)))
-	Y_s_short = int(240+60*math.sin(math.radians(error_Y))-error_X*3)
-
-	X_e_short = int(320+60*math.cos(math.radians(error_Y)))
-	Y_e_short = int(240-60*math.sin(math.radians(error_Y))-error_X*3)
-
-	cv2.line(draw_on,(X_s_short,Y_s_short+90),(X_e_short,Y_e_short+90),(0,255,0))
-	cv2.line(draw_on,(X_s_short,Y_s_short+180),(X_e_short,Y_e_short+180),(0,255,0))
-	cv2.line(draw_on,(X_s_short,Y_s_short+360),(X_e_short,Y_e_short+360),(0,255,0))
-	cv2.line(draw_on,(X_s_short,Y_s_short+450),(X_e_short,Y_e_short+450),(0,255,0))
-
-	cv2.line(draw_on,(X_s_short,Y_s_short-90),(X_e_short,Y_e_short-90),(0,255,0))
-	cv2.line(draw_on,(X_s_short,Y_s_short-180),(X_e_short,Y_e_short-180),(0,255,0))
-	cv2.line(draw_on,(X_s_short,Y_s_short-360),(X_e_short,Y_e_short-360),(0,255,0))
-	cv2.line(draw_on,(X_s_short,Y_s_short-450),(X_e_short,Y_e_short-450),(0,255,0))
-
-
-def opencv_r():
-	global frame_num, source, HSVimg
-	while True:
-		try:
-			frame = footage_socket.recv_string()
-			img = base64.b64decode(frame)
-			npimg = np.frombuffer(img, dtype=np.uint8)
-			source = cv2.imdecode(npimg, 1)
-			cv2.putText(source,('PC FPS: %s'%fps),(40,20), font, 0.5,(255,255,255),1,cv2.LINE_AA)
-
-			
-			try:
-				cv2.putText(source,('CPU Temperature: %s'%CPU_TEP),(370,350), font, 0.5,(128,255,128),1,cv2.LINE_AA)
-				cv2.putText(source,('CPU Usage: %s'%CPU_USE),(370,380), font, 0.5,(128,255,128),1,cv2.LINE_AA)
-				cv2.putText(source,('RAM Usage: %s'%RAM_USE),(370,410), font, 0.5,(128,255,128),1,cv2.LINE_AA)
-
-				cv2.rectangle(source, (167, 320), (473, 330), (255,255,255))
-
-				DIR_show = int(CAR_DIR)
-				if DIR_show > 0:
-					cv2.rectangle(source, ((320-DIR_show), 323), (320, 327), (255,255,255))
-				elif DIR_show < 0:
-					cv2.rectangle(source, (320, 323), ((320-DIR_show), 327), (255,255,255))
-			except:
-				pass
-
-			if advanced_OSD:#1
-				advanced_OSD_add(source, OSD_X, OSD_Y)
-			
-			#cv2.putText(source,('%sm'%ultra_data),(210,290), font, 0.5,(255,255,255),1,cv2.LINE_AA)
-			cv2.imshow("Stream", source)
-			cv2.setMouseCallback("Stream", getposBgr)
-
-			HSVimg = cv2.cvtColor(source, cv2.COLOR_BGR2Lab)
-			cv2.imshow("StreamHSV", HSVimg)
-			cv2.setMouseCallback("StreamHSV", getposHsv)
-
-			frame_num += 1
-			cv2.waitKey(1)
-
-		except:
-			time.sleep(0.5)
-			break
-
-fps_threading=thread.Thread(target=get_FPS)		 #Define a thread for FPV and OpenCV
-fps_threading.setDaemon(True)							 #'True' means it is a front thread,it would close when the mainloop() closes
-fps_threading.start()									 #Thread starts
-
-########>>>>>VIDEO<<<<<########
-
-
-def replace_num(initial,new_num):   #Call this function to replace data in '.txt' file
-	newline=""
-	str_num=str(new_num)
-
-
-def num_import(initial):			#Call this function to import data from '.txt' file
-	x = 1
 
 
 def connection_thread():
@@ -244,10 +125,8 @@ def connection_thread():
 
 		elif 'trackLine' in car_info:
 			function_stu = 1
-			Btn_function_6.config(bg='#4CAF50')
-		elif 'Speech' in car_info:
-			function_stu = 1
-			Btn_function_6.config(bg='#4CAF50')
+			Btn_function_1.config(bg='#4CAF50')
+
 
 		elif 'stopCV' in car_info:
 			function_stu = 0
@@ -290,7 +169,6 @@ def socket_connect():	 #Call this function to connect with the server
 	ip_adr=E1.get()	   #Get the IP address from Entry
 
 	if ip_adr == '':	  #If no input IP address in Entry,import a default IP
-		ip_adr=num_import('IP:')
 		l_ip_4.config(text='Connecting')
 		l_ip_4.config(bg='#FF8F00')
 		l_ip_5.config(text='Default:%s'%ip_adr)
@@ -315,21 +193,20 @@ def socket_connect():	 #Call this function to connect with the server
 			l_ip_4.config(text='Connected')
 			l_ip_4.config(bg='#558B2F')
 
-			replace_num('IP:',ip_adr)
 			E1.config(state='disabled')	  #Disable the Entry
 			Btn14.config(state='disabled')   #Disable the Entry
 			
 			ip_stu=0						 #'0' means connected
 
-			connection_threading=thread.Thread(target=connection_thread)		 #Define a thread for FPV and OpenCV
-			connection_threading.setDaemon(True)							 
+			connection_threading=thread.Thread(target=connection_thread)		 
+			connection_threading.daemon = True						 
 			connection_threading.start()									 
 
 			info_threading=thread.Thread(target=Info_receive)		 #get CPU info 
-			info_threading.setDaemon(True)							 
+			info_threading.daemon = True						 
 			info_threading.start()									 
 
-			video_threading=thread.Thread(target=run_open)		 #Define a thread for FPV and OpenCV
+			video_threading=thread.Thread(target=run_open)		 
 			video_threading.daemon = True					 
 			video_threading.start()									 
 
@@ -351,7 +228,7 @@ def socket_connect():	 #Call this function to connect with the server
 def connect(event):	   #Call this function to connect with the server
 	if ip_stu == 1:
 		sc=thread.Thread(target=socket_connect) #Define a thread for connection
-		sc.setDaemon(True)					  #'True' means it is a front thread,it would close when the mainloop() closes
+		sc.daemon = True		 
 		sc.start()							  #Thread starts
 
 
