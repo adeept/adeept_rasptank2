@@ -15,7 +15,6 @@ import threading
 import imutils
 import libcamera
 from picamera2 import Picamera2
-import io
 
 
 pid = PID.PID()
@@ -38,7 +37,7 @@ findLineError = 20
 turn_speed = 50 # Range of values: 0-100
 forward_speed = 50 # Avoid too fast, the video screen does not respond in time. Range of values: 0-100.
 
-
+APPMode = None
 hflip = 0 # Video flip horizontally: 0 or 1 
 vflip = 0 # Video vertical flip: 0/1 
 ImgIsNone = 0
@@ -352,7 +351,10 @@ class CVThread(threading.Thread):
             print('No servoPort %d assigned.'%ID)
 
     def findColor(self, frame_image):
-        hsv = cv2.cvtColor(frame_image, cv2.COLOR_BGR2HSV)
+        if APPMode == 'APP':
+            hsv = cv2.cvtColor(frame_image, cv2.COLOR_BGR2RGB)
+        else:
+            hsv = cv2.cvtColor(frame_image, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, colorLower, colorUpper)#1
         mask = cv2.erode(mask, None, iterations=2)
         mask = cv2.dilate(mask, None, iterations=2)
@@ -424,6 +426,30 @@ class Camera(BaseCamera):
 
         VAL_1 = invarV+150
         VAL_2 = invarV-150
+        if VAL_1>255:VAL_1=255
+        if VAL_2<0:VAL_2=0
+
+        colorUpper = np.array([HUE_1, SAT_1, VAL_1])
+        colorLower = np.array([HUE_2, SAT_2, VAL_2])
+        print('HSV_1:%d %d %d'%(HUE_1, SAT_1, VAL_1))
+        print('HSV_2:%d %d %d'%(HUE_2, SAT_2, VAL_2))
+        print(colorUpper)
+        print(colorLower)
+
+    def colorFindSetApp(self, invarH, invarS, invarV):
+        global colorUpper, colorLower
+        HUE_1 = invarH+100
+        HUE_2 = invarH-100
+        if HUE_1>255:HUE_1=255
+        if HUE_2<0:HUE_2=0
+
+        SAT_1 = invarS+100
+        SAT_2 = invarS-100
+        if SAT_1>255:SAT_1=255
+        if SAT_2<0:SAT_2=0
+
+        VAL_1 = invarV+100
+        VAL_2 = invarV-100
         if VAL_1>255:VAL_1=255
         if VAL_2<0:VAL_2=0
 

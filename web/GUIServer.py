@@ -34,6 +34,7 @@ scGear.start()
 batteryMonitor = Voltage.BatteryLevelMonitor()
 batteryMonitor.start()
 
+
 init_pwm = []
 for i in range(8):
     init_pwm.append(scGear.initPos[i])
@@ -77,10 +78,6 @@ def FPV_thread():
     fpv.capture_thread(addr[0])
 
 
-def ap_thread():
-    os.system("sudo create_ap wlan0 eth0 Adeept_Robot 12345678")
-
-
 def functionSelect(command_input, response):
     if 'findColor' == command_input:
         fpv.FindColor(1)
@@ -101,13 +98,10 @@ def functionSelect(command_input, response):
         switch.switch(3,0)
 
     elif 'police' == command_input:
-        if ws2812_mark:
-            ws2812.police()
-        
+        ws2812.police()
 
     elif 'policeOff' == command_input:
-        if ws2812_mark:
-            ws2812.breath(70,70,255)
+        ws2812.breath(70,70,255)
 
     elif 'automatic' == command_input:
         fuc.automatic()
@@ -123,8 +117,6 @@ def functionSelect(command_input, response):
 
     elif 'trackLineOff' == command_input:
         fuc.pause()
-        time.sleep(0.5)
-        move.motorStop()
 
 
 def switchCtrl(command_input):
@@ -216,7 +208,6 @@ def robotCtrl(command_input):
     elif 'UDstop' in command_input:
         scGear.stopWiggle()
 
-
     elif 'home' == command_input:
         scGear.moveServoInit([0])
         scGear.moveServoInit([1])
@@ -266,46 +257,18 @@ def configPWM(command_input):
             scGear.setPWM(4,init_pwm4)
 
     if 'PWMMS' in command_input:
-        numServo = int(command_input[6:])
-        scGear.moveAngle(numServo, 0)
-
-    if 'PWMINIT' == command_input:
         init_pwm0 = 90
         for i in range(5):
             scGear.moveAngle(i, 0)
             scGear.nowPos[i] = 90
+
+    if 'PWMINIT' == command_input:
+        servoPosInit()
     elif 'PWMD' in command_input:
         init_pwm0 = 90
         for i in range(5):
             scGear.moveAngle(i, 0)
             scGear.nowPos[i] = 90
-
-
-
-def wifi_check():
-    global mark_test
-    try:
-        time.sleep(3)
-        s =socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        s.connect(("1.1.1.1",80))
-        ipaddr_check=s.getsockname()[0]
-        s.close()
-        print(ipaddr_check)
-        mark_test = 1  
-    except:
-        if mark_test == 1:
-            mark_test = 0
-            move.destroy()      # motor stop.
-            scGear.moveInit()   # servo  back initial position.
-
-        ap_threading=threading.Thread(target=ap_thread)   #Define a thread for data receiving
-        ap_threading.setDaemon(True)                          #'True' means it is a front thread,it would close when the mainloop() closes
-        ap_threading.start()                                  #Thread starts
-        if ws2812_mark:
-            ws2812.setColor(35,255,35)
-
-
-
 
 
 def recv_msg(tcpCliSock):
@@ -318,22 +281,16 @@ def recv_msg(tcpCliSock):
             'title' : '',
             'data' : None
         }
-
-
         data = tcpCliSock.recv(BUFSIZ).decode()
         print(data)
 
         if not data:
             continue
 
-
         if isinstance(data,str):
             robotCtrl(data)
-
             switchCtrl(data)
-
             functionSelect(data, response)
-
             configPWM(data)
 
             if 'get_info' == data:
@@ -392,57 +349,40 @@ def recv_msg(tcpCliSock):
         response = json.dumps(response)
         tcpCliSock.sendall(response.encode())
 
-def test_Network_Connection():
-    while True:
-        try:
-            s =socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-            s.connect(("1.1.1.1",80))
-            s.close()
-        except:
-            move.destroy()
-        
-        time.sleep(0.5)
-
 if __name__ == '__main__':
     switch.switchSetup()
-    switch.set_all_switch_off()
-    ws2812_mark = None
+    switch.set_all_switch_off()                                  
 
+    ws2812=robotLight.Adeept_SPI_LedPixel(16, 255)
     try:
-        # global WS2812
-        robotlight_check = robotLight.check_rpi_model()
-        if robotlight_check == 5:
-            print("\033[1;33m WS2812 officially does not support Raspberry Pi 5 for the time being, and the WS2812 LED cannot be used on Raspberry Pi 5.\033[0m")
-            ws2812_mark = 0  # WS2812 not compatible
-        else:
-            print("ws2812 success!")
-            ws2812_mark = 1
-            ws2812 = robotLight.RobotWS2812()
+        if ws2812.check_spi_state() != 0:
             ws2812.start()
-            ws2812.breath(70,70,255)
+            ws2812.breath(70,70,255)                       # Set the brightness of lights.
     except:
-        print('Use "sudo pip3 install rpi_ws281x" to install WS_281x package\n using "sudo pip3 install rpi_ws281x" install rpi_ws281x')
+        ws2812.led_close()
         pass
 
     HOST = ''
-    PORT = 10223
-    BUFSIZ = 1024
+    PORT = 10223                              #Define port serial 
+    BUFSIZ = 1024                             #Define buffer size
     ADDR = (HOST, PORT)
 
-    wifi_check()
-    try:
+    try:                  #Start server,waiting for client
         tcpSerSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tcpSerSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        tcpSerSock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         tcpSerSock.bind(ADDR)
-        tcpSerSock.listen(5)
+        tcpSerSock.listen(5)                   
         print("Waiting for client connection")
         tcpCliSock, addr = tcpSerSock.accept()
         print("Connected to the client :" + str(addr))
-        fps_threading = threading.Thread(target=FPV_thread)
-        fps_threading.setDaemon(True)
-        fps_threading.start()
-        recv_msg(tcpCliSock)
+        fps_threading=threading.Thread(target=FPV_thread)         #Define a thread for FPV and OpenCV
+        fps_threading.setDaemon(True)                             #'True' means it is a front thread,it would close when the mainloop() closes
+        fps_threading.start()   
+        recv_msg(tcpCliSock)  
     except Exception as e:
         print(e)
-        if ws2812_mark:
-            ws2812.setColor(0,0,0)
+        ws2812.set_all_led_color_data(0,0,0)
+        ws2812.show()
+
+
+

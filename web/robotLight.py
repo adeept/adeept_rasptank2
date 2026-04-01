@@ -11,17 +11,6 @@ import threading
 import spidev
 import numpy
 from numpy import sin, cos, pi
-def check_rpi_model():
-    _, result = run_command("cat /proc/device-tree/model |awk '{print $3}'")
-    result = result.strip()
-    if result == '3':
-        return 3
-    elif result == '4':
-        return 4
-    elif result == '5':
-        return 5
-    else:
-        return None
 
 def run_command(cmd=""):
     import subprocess
@@ -31,6 +20,15 @@ def run_command(cmd=""):
     status = p.poll()
     return status, result
 
+def check_rpi_model():
+    _, result = run_command("cat /proc/device-tree/model |awk '{print $3}'")
+    result = result.strip()
+    if result == '3':
+        return int(3)
+    elif result == '4':
+        return int(4)
+    else:
+        return None
 
 def map(x, in_min, in_max, out_min, out_max):
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
@@ -173,6 +171,15 @@ class Adeept_SPI_LedPixel(threading.Thread):
         self.colorBreathG = 0
         self.colorBreathB = 0
         self.breathSteps = 10
+
+        self.rainbow_r = 0
+        self.rainbow_g = 0
+        self.rainbow_b = 0
+
+        self.colorFlowingR = 0
+        self.colorFlowingG = 0
+        self.colorFlowingB = 0
+
         #self.spi_gpio_info()
         self.set_all_led_color(0,0,0)
         super(Adeept_SPI_LedPixel, self).__init__(*args, **kwargs)
@@ -254,13 +261,13 @@ class Adeept_SPI_LedPixel(threading.Thread):
         for i in range(3):
             self.led_color[index*3+i] = p[i]
 
-    def setSomeColor_data(self, index, r, g, b):
+    def set_led_color_data(self, index, r, g, b):
         self.set_ledpixel(index, r, g, b)  
         
     def set_led_rgb_data(self, index, color):
         self.set_ledpixel(index, color[0], color[1], color[2])   
         
-    def setSomeColor(self, index, r, g, b):
+    def set_led_color(self, index, r, g, b):
         self.set_ledpixel(index, r, g, b)
         self.show() 
         
@@ -270,7 +277,7 @@ class Adeept_SPI_LedPixel(threading.Thread):
     
     def set_all_led_color_data(self, r, g, b):
         for i in range(self.led_count):
-            self.setSomeColor_data(i, r, g, b)
+            self.set_led_color_data(i, r, g, b)
             
     def set_all_led_rgb_data(self, color):
         for i in range(self.led_count):
@@ -278,7 +285,7 @@ class Adeept_SPI_LedPixel(threading.Thread):
         
     def set_all_led_color(self, r, g, b):
         for i in range(self.led_count):
-            self.setSomeColor_data(i, r, g, b)
+            self.set_led_color_data(i, r, g, b)
         self.show()
         
     def set_all_led_rgb(self, color):
@@ -368,6 +375,20 @@ class Adeept_SPI_LedPixel(threading.Thread):
         self.colorBreathG = G_input
         self.colorBreathB = B_input
         self.resume()    
+
+    def rainbow(self, R_input, G_input, B_input):
+        self.lightMode = 'rainbow'
+        self.rainbow_r = R_input
+        self.rainbow_g = G_input
+        self.rainbow_b = B_input
+        self.resume()
+
+    def flowing(self, R_input, G_input, B_input):
+        self.lightMode = 'flowing'
+        self.colorFlowingR = R_input
+        self.colorFlowingG = G_input
+        self.colorFlowingB = B_input
+        self.resume()
             
     def resume(self):
         self.__flag.set()
@@ -413,7 +434,31 @@ class Adeept_SPI_LedPixel(threading.Thread):
                 self.show()
                 time.sleep(0.05)
             time.sleep(0.1)
-            
+
+    def rainbowProcessing(self):
+        while self.lightMode == 'rainbow':
+            for i in range(self.led_count):
+                self.rainbow_r = self.rainbow_r + i * 10
+                self.rainbow_g = self.rainbow_g + i * 10
+                self.rainbow_b = self.rainbow_b + i * 10
+                if self.rainbow_r > 255:
+                    self.rainbow_r -= 255
+                if self.rainbow_g > 255:
+                    self.rainbow_g -= 255
+                if self.rainbow_b > 255:
+                    self.rainbow_b -= 255
+                self.set_led_color(i, self.rainbow_r,self.rainbow_g,self.rainbow_b)
+                self.show()
+                self.lightMode = 'none'
+
+    def flowingProcessing(self):
+        while self.lightMode == 'flowing':
+            self.set_all_led_rgb_data([0, 0, 0])
+            for i in range(self.led_count):
+                self.set_led_color(i, self.colorFlowingR,self.rainbow_g,self.colorFlowingR)
+                time.sleep(0.2)
+                self.show()
+            time.sleep(0.2)           
             
     def lightChange(self):
         if self.lightMode == 'none':
@@ -422,68 +467,16 @@ class Adeept_SPI_LedPixel(threading.Thread):
             self.policeProcessing()
         elif self.lightMode == 'breath':
             self.breathProcessing()    
+        elif self.lightMode == 'rainbow':
+            self.rainbowProcessing()
+        elif self.lightMode == 'flowing':
+            self.flowingProcessing()
     
     def run(self):
         while 1:
             self.__flag.wait()
             self.lightChange()
             pass
-
-
-
-class RobotLight(threading.Thread):
-    def __init__(self, *args, **kwargs):
-
-        self.left_R = 13
-        self.left_G = 0
-        self.left_B = 19
-
-        self.right_R = 5
-        self.right_G = 6
-        self.right_B = 1
-        
-        self.Left_G = PWM(pin=self.left_R,initial_value=1.0, frequency=2000)
-        self.Left_B = PWM(pin=self.left_G,initial_value=1.0, frequency=2000)
-        self.Left_R = PWM(pin=self.left_B,initial_value=1.0, frequency=2000)
-        
-        self.Right_G = PWM(pin=self.right_R,initial_value=1.0, frequency=2000)
-        self.Right_B = PWM(pin=self.right_G,initial_value=1.0, frequency=2000)
-        self.Right_R = PWM(pin=self.right_B,initial_value=1.0, frequency=2000)
-
-
-    def setRGBColor(self,LED_num, R,G,B):   # For example : (1,  255,0,0)
-        if LED_num ==1 :
-            R_val = map(R, 0, 255, 0, 1.00)
-            G_val = map(G, 0, 255, 0, 1.00)
-            B_val = map(B, 0, 255, 0, 1.00)
-            self.Left_R.value = 1.0-R_val
-            self.Left_G.value = 1.0-G_val
-            self.Left_B.value = 1.0-B_val
-
-        elif LED_num == 2:
-            R_val = map(R, 0, 255, 0, 1.00)
-            G_val = map(G, 0, 255, 0, 1.00)
-            B_val = map(B, 0, 255, 0, 1.00)
-            self.Right_R.value = 1.0-R_val
-            self.Right_G.value = 1.0-G_val
-            self.Right_B.value = 1.0-B_val
-
-    def both_on(self,R,G,B):
-        self.setRGBColor(1, R,G,B)
-        self.setRGBColor(2, R,G,B)
-
-    def RGB_left_on(self,R,G,B):
-        self.setRGBColor(1, R,G,B)
-        self.setRGBColor(2, 0,0,0)
-
-    def RGB_right_on(self,R,G,B):
-        self.setRGBColor(1, 0,0,0)
-        self.setRGBColor(2, R,G,B)
-
-    def both_off(self):
-        self.setRGBColor(1, 0,0,0)
-        self.setRGBColor(2, 0,0,0)
-
 
 
 if __name__ == '__main__':
