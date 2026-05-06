@@ -258,7 +258,7 @@ class CVThread(threading.Thread):
             else:
                 tracking_servo_status = 0 # mid
                 if CVRun:
-                    move.video_Tracking_Move(forward_speed, 1,"mid")
+                    move.video_Tracking_Move(forward_speed, -1,"mid")
                 else: 
                     move.motorStop() # stop
                 pass

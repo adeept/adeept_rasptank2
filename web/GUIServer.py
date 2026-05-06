@@ -21,7 +21,7 @@ import json
 import Voltage
 mark_test = 0
 
-speed_set = 25
+speed_set = 50
 turnWiggle = 60
 
 direction_command = 'no'
@@ -143,11 +143,11 @@ def robotCtrl(command_input):
     global direction_command, turn_command
     if 'forward' == command_input:
         direction_command = 'forward'
-        move.move(speed_set, 1, "mid")
+        move.move(speed_set, -1, "mid")
     
     elif 'backward' == command_input:
         direction_command = 'backward'
-        move.move(speed_set, -1, "mid")
+        move.move(speed_set, 1, "mid")
 
     elif 'DS' in command_input:
         direction_command = 'no'
@@ -184,10 +184,10 @@ def robotCtrl(command_input):
         scGear.stopWiggle()
 
     elif 'lookleft' == command_input:
-        scGear.singleServo(2,  1, 2)
+        scGear.singleServo(2, -1, 2)
 
     elif 'lookright' == command_input:
-        scGear.singleServo(2, -1, 2)
+        scGear.singleServo(2, 1, 2)
 
     elif 'LRstop' in command_input:
         scGear.stopWiggle()

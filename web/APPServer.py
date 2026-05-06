@@ -156,11 +156,11 @@ def robotCtrl(command_input, response):
     clen = len(command_input.split())
     if 'forward' in command_input and clen == 2:
         direction_command = 'forward'
-        move.move(speed_set, 1, "mid")
+        move.move(speed_set, -1, "mid")
     
     elif 'backward' in command_input and clen == 2:
         direction_command = 'backward'
-        move.move(speed_set, -1, "no")
+        move.move(speed_set, 1, "no")
 
     elif 'left' in command_input and clen == 2:
         turn_command = 'left'

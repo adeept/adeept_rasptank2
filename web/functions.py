@@ -91,7 +91,7 @@ class Functions(threading.Thread):
 		status_left = track_line_left.value
 		print('R%d   M%d   L%d'%(status_right,status_middle,status_left))
 		if status_middle == 0:
-			move.trackingMove(TL_Speed,1,"mid")
+			move.trackingMove(TL_Speed,-1,"mid")
 		elif status_left == 0:
 			move.trackingMove(TL_Speed,1,"left")
 		elif status_right == 0:
@@ -122,7 +122,7 @@ class Functions(threading.Thread):
 		print(dist, "cm")
 		time.sleep(0.2)
 		if dist >= 40:			# More than 40CM, go straight.
-			move.move(AutoMatic_Speed, 1, "mid")
+			move.move(AutoMatic_Speed, -1, "mid")
 			print("Forward")
 		# More than 20cm and less than 40cm, speed reduced.
 		elif dist > 20 and dist < 40:	
@@ -138,13 +138,13 @@ class Functions(threading.Thread):
 			if self.scanList[0] >= self.scanList[1]:
 				move.move(AutoMatic_Speed,1,"left")
 				print("Left")
-				time.sleep(0.5)
+				time.sleep(1)
 			else:
 				move.move(AutoMatic_Speed, 1, "right")
 				print("Right")
-				time.sleep(0.2)
+				time.sleep(1)
 		else:		# The distance is less than 20cm, back.
-			move.move(AutoMatic_Speed, -1, "mid")
+			move.move(AutoMatic_Speed, 1, "mid")
 			print("Back")
 			time.sleep(0.8)
 
@@ -152,9 +152,9 @@ class Functions(threading.Thread):
 	def keepDisProcessing(self):
 		distanceGet = ultra.checkdist()
 		if distanceGet > (self.rangeKeep/2+0.1):
-			move.move(KD_Speed, 1, "mid")
-		elif distanceGet < (self.rangeKeep/2-0.1):
 			move.move(KD_Speed, -1, "mid")
+		elif distanceGet < (self.rangeKeep/2-0.1):
+			move.move(KD_Speed, 1, "mid")
 		else:
 			move.motorStop()
 

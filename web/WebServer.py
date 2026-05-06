@@ -27,7 +27,7 @@ OLED_connection = 0
 
 
 functionMode = 0
-speed_set = 100
+speed_set = 50
 rad = 0.5
 turnWiggle = 60
 
@@ -174,12 +174,12 @@ def robotCtrl(command_input, response):
     global direction_command, turn_command
     if 'forward' == command_input:
         direction_command = 'forward'
-        move.move(speed_set, 1, "mid")
+        move.move(speed_set, -1, "mid")
         print("1111")
     
     elif 'backward' == command_input:
         direction_command = 'backward'
-        move.move(speed_set, -1, "no")
+        move.move(speed_set, 1, "no")
 
     elif 'DS' in command_input:
         direction_command = 'no'
@@ -215,9 +215,9 @@ def robotCtrl(command_input, response):
         H2_sc.stopWiggle()
 
     elif 'lookleft' == command_input: # servo C
-        P_sc.singleServo(2, 1, 2)
+        P_sc.singleServo(2, -1, 2)
     elif 'lookright' == command_input:
-        P_sc.singleServo(2,-1, 2)
+        P_sc.singleServo(2, 1, 2)
     elif 'LRstop' in command_input:
         P_sc.stopWiggle()
 
