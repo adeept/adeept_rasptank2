@@ -13,6 +13,7 @@ import statistics
 from collections import deque
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState, Range
 
@@ -96,8 +97,11 @@ def main(args=None):
     node = SensorsNode()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except Exception:
+        if rclpy.ok():
+            raise       # a real error; otherwise a callback was cut by the shutdown
     finally:
         node.destroy_node()
         if rclpy.ok():

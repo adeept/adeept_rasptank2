@@ -10,6 +10,7 @@ Then label the images (Roboflow, Label Studio, CVAT) as in tools/yolo.
 import os
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import CompressedImage
@@ -49,8 +50,11 @@ def main(args=None):
     node = CaptureNode()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except Exception:
+        if rclpy.ok():
+            raise       # a real error; otherwise a callback was cut by the shutdown
     finally:
         node.destroy_node()
         if rclpy.ok():

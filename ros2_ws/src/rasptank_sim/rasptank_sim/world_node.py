@@ -22,6 +22,7 @@ import math
 
 import cv2
 import rclpy
+from rclpy.executors import ExternalShutdownException
 import yaml
 from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node
@@ -270,8 +271,11 @@ def main(args=None):
     node = WorldNode()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except Exception:
+        if rclpy.ok():
+            raise       # a real error; otherwise a callback was cut by the shutdown
     finally:
         node.destroy_node()
         if rclpy.ok():

@@ -15,6 +15,7 @@ With `driver: fake` nothing is moved: the odometry is then the robot pose
 of the simulator.
 """
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from geometry_msgs.msg import TransformStamped, Twist
 from nav_msgs.msg import Odometry as OdometryMsg
 from rclpy.node import Node
@@ -139,8 +140,11 @@ def main(args=None):
     node = BaseNode()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except Exception:
+        if rclpy.ok():
+            raise       # a real error; otherwise a callback was cut by the shutdown
     finally:
         node.destroy_node()
         if rclpy.ok():
