@@ -22,8 +22,11 @@ def generate_launch_description():
     share = FindPackageShare('rasptank_bringup')
     config = lambda name: PathJoinSubstitution([share, 'config', name])  # noqa: E731
     arg = LaunchConfiguration
+    cmd_topic = PythonExpression(["'cmd_vel_safe' if '", arg('governor'), "' == 'true' else 'cmd_vel'"])
     world = PathJoinSubstitution([share, 'worlds', PythonExpression(["'", arg('world'), "' + '.yaml'"])])
     return LaunchDescription([
+        DeclareLaunchArgument('calibration_file', default_value='~/.rasptank/calibracion_sim.yaml',
+                              description='calibración de la base simulada (none = sin fichero)'),
         DeclareLaunchArgument('world', default_value='mision',
                               description='mision, linea, vacio o tu mundo en worlds/'),
         DeclareLaunchArgument('rviz', default_value='true'),
@@ -36,12 +39,19 @@ def generate_launch_description():
                               description='color o yolo (con yolo_model)'),
         DeclareLaunchArgument('yolo_model', default_value='',
                               description='modelo .onnx de tools/yolo/entrenar_yolo.py'),
+        DeclareLaunchArgument('governor', default_value='true',
+                              description='limitar la velocidad con el ultrasonido'),
         DeclareLaunchArgument('route', default_value='false',
                               description='seguidor de rutas (puntos clicados en RViz)'),
         IncludeLaunchDescription(PythonLaunchDescriptionSource(
             PathJoinSubstitution([share, 'launch', 'rsp.launch.py']))),
         Node(package='rasptank_hw', executable='base_node', name='base_node',
+             parameters=[config('robot.yaml'), {'driver': 'fake', 'cmd_topic': cmd_topic,
+                                                'calibration_file': arg('calibration_file')}]),
+        Node(package='rasptank_hw', executable='motor_watchdog_node', name='motor_watchdog',
              parameters=[config('robot.yaml'), {'driver': 'fake'}]),
+        Node(package='rasptank_hw', executable='governor_node', name='governor',
+             parameters=[config('robot.yaml')], condition=IfCondition(arg('governor'))),
         Node(package='rasptank_hw', executable='arm_node', name='arm_node',
              parameters=[config('robot.yaml'), {'driver': 'fake'}]),
         Node(package='rasptank_sim', executable='world_node', name='world_node',

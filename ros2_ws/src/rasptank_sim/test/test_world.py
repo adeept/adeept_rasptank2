@@ -50,3 +50,11 @@ def test_goal_area_is_in_front_of_the_board():
     ax, ay = w.goal.area
     assert ax > w.goal.x and ay == pytest.approx(0.0)
     assert math.hypot(ax - w.goal.x, ay - w.goal.y) == pytest.approx(0.11)
+
+
+def test_ultrasonic_ignores_the_cube_held_up_in_the_gripper():
+    # regression: the governor stopped the robot because the sensor "saw" it
+    w = World(CONFIG)
+    w.try_grasp((0.31, -0.3, 0.025))
+    w.carry((0.17, 0.0, 0.2))
+    assert w.ultrasonic(0.11, 0.0, 0.0, 0.06, noise=0) == pytest.approx(0.89, abs=0.01)

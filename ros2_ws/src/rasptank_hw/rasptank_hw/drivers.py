@@ -75,6 +75,39 @@ class PcaMotors:
         self.pca.deinit()
 
 
+class FakeMotorKiller:
+    def __init__(self):
+        self.zeroed = 0
+
+    def zero(self):
+        self.zeroed += 1
+
+
+class PcaMotorKiller:
+    """Switches the motor channels of the PCA9685 fully off, directly.
+
+    Used by motor_watchdog_node when base_node stops responding. It does
+    NOT re-initialise the chip (that would reset the servos too): it only
+    sets the "full OFF" bit of each motor channel (LEDn_OFF_H bit 4).
+    """
+
+    LED0_OFF_H = 0x09     # + 4 * channel; bit 4 = full OFF, wins over everything else
+
+    def __init__(self, address, channels, bus=1):
+        try:
+            from smbus2 import SMBus
+        except ImportError:
+            from smbus import SMBus
+        self.bus = SMBus(bus)
+        self.address = address
+        self.channels = list(channels)
+
+    def zero(self):
+        # one byte per channel: works whether or not register auto-increment is on
+        for ch in self.channels:
+            self.bus.write_byte_data(self.address, self.LED0_OFF_H + 4 * ch, 0x10)
+
+
 class PcaServos:
     """Hobby servos on the PCA9685 (500-2400 us for 0-180 degrees)."""
 

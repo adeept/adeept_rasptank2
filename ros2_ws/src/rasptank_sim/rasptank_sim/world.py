@@ -122,7 +122,11 @@ class World:
                 segments += o.segments()
         if self.goal is not None:
             segments.append(self.goal.segment())
-        if self.cube is not None and self.cube.position[2] + self.cube.size / 2 >= height:
+        cube = self.cube
+        if cube is not None and (cube.position[2] - cube.size / 2 <= height
+                                 <= cube.position[2] + cube.size / 2):
+            # only when it is at the height of the sensor: not on the floor
+            # below it (4 cm cube) nor up in the gripper
             cx, cy = self.cube.position[:2]
             segments += box_segments(cx, cy, self.cube.yaw, self.cube.size, self.cube.size)
         best = max_range

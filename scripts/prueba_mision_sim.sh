@@ -14,7 +14,7 @@ source "$ROOT/scripts/ros_env.sh"
 
 LOG="$(mktemp -t rasptank_sim.XXXXXX.log)"
 setsid ros2 launch rasptank_bringup sim.launch.py world:="$WORLD" rviz:=false mission:=true \
-  autostart:=true "$@" >"$LOG" 2>&1 &
+  autostart:=true calibration_file:=none "$@" >"$LOG" 2>&1 &
 LAUNCH_PID=$!
 
 stop_sim() {

@@ -23,6 +23,27 @@ base_node:
     max_linear: 0.2
     max_angular: 1.5
     cmd_timeout: 0.5
+    # Calibración (rasptank_calibration): estos valores son el punto de partida;
+    # la calibración guardada en calibration_file los sustituye.
+    left_gain: 1.0
+    right_gain: 1.0
+    battery_reference: 0.0     # V al calibrar; 0 = sin compensar la batería
+    calibration_file: ~/.rasptank/calibracion.yaml
+
+motor_watchdog:
+  ros__parameters:
+    driver: pca9685
+    i2c_address: 95
+    left_channels: [15, 14]    # los mismos que base_node
+    right_channels: [12, 13]
+    timeout: 0.3               # s sin latido de base_node -> motores apagados
+
+governor:
+  ros__parameters:
+    stop_distance: 0.12        # m desde el ultrasonido: no avanza más cerca
+    slow_distance: 0.45        # m: desde aquí empieza a frenar
+    min_speed: 0.03
+    max_speed: 0.2
 
 arm_node:
   ros__parameters:

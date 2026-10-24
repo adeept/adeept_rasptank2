@@ -15,3 +15,7 @@ services:
     volumes:
       - /dev:/dev
       - /sys:/sys
+      - calibracion:/root/.rasptank     # calibración de la odometría: sobrevive a reinicios
+
+volumes:
+  calibracion:
