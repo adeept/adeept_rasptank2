@@ -7,8 +7,8 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORLD="${1:-mision}"
 TIMEOUT="${2:-180}"
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-77}"     # no choca con una simulación abierta (41)
 source "$ROOT/scripts/ros_env.sh"
-export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-77}"
 
 LOG="$(mktemp -t rasptank_sim.XXXXXX.log)"
 setsid ros2 launch rasptank_bringup sim.launch.py world:="$WORLD" rviz:=false mission:=true \

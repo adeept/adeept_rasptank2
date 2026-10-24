@@ -6,13 +6,18 @@ Publishes:
 
 `backend`:
   picamera2  the Raspberry Pi camera through libcamera (Raspberry Pi OS)
-  opencv     cv2.VideoCapture(`source`): a device number ("0"), a file, or
-             a stream URL such as "tcp://127.0.0.1:8554" (rpicam-vid on the
-             host when ROS runs in Docker; see docker/README.md)
+  opencv     cv2.VideoCapture(`source`): a device number ("0"), a file or
+             a stream URL
+  tcp        JPEG frames from scripts/pi/camara_host.py, which runs on
+             Raspberry Pi OS with picamera2 when ROS runs in Docker;
+             `source` is "host:port" (see docker/README.md)
 
 The intrinsics come from `camera_matrix` / `distortion` (calibrate the
 camera, see ROS2.md) or, if those are empty, from `hfov` (degrees).
 """
+import socket
+import struct
+import threading
 import time
 
 import cv2
@@ -54,7 +59,12 @@ class CameraNode(Node):
 
         self.picam = None
         self.capture = None
-        if self.backend == 'picamera2':
+        self.tcp_frame = None
+        if self.backend == 'tcp':
+            host, _, port = source.rpartition(':')
+            self.tcp_address = (host or '127.0.0.1', int(port or 8555))
+            threading.Thread(target=self.tcp_reader, daemon=True).start()
+        elif self.backend == 'picamera2':
             from picamera2 import Picamera2
             self.picam = Picamera2()
             config = self.picam.create_video_configuration(
@@ -66,7 +76,7 @@ class CameraNode(Node):
             self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
             self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         else:
-            raise ValueError(f'unknown backend {self.backend!r} (picamera2 or opencv)')
+            raise ValueError(f'unknown backend {self.backend!r} (picamera2, opencv or tcp)')
 
         self.image_pub = self.create_publisher(CompressedImage, 'camera/image/compressed', 2)
         self.info_pub = self.create_publisher(CameraInfo, 'camera/camera_info', 2)
@@ -74,7 +84,35 @@ class CameraNode(Node):
         self._failures = 0
         self.get_logger().info(f'camera ready ({self.backend}, {self.width}x{self.height})')
 
+    def tcp_reader(self):
+        """Keeps the last JPEG sent by camara_host.py (4-byte length + data)."""
+        def recv(sock, n):
+            data = b''
+            while len(data) < n:
+                chunk = sock.recv(n - len(data))
+                if not chunk:
+                    raise ConnectionError('closed')
+                data += chunk
+            return data
+
+        while rclpy.ok():
+            try:
+                with socket.create_connection(self.tcp_address, timeout=5.0) as sock:
+                    self.get_logger().info(f'connected to the camera at {self.tcp_address}')
+                    while rclpy.ok():
+                        size, = struct.unpack('>I', recv(sock, 4))
+                        self.tcp_frame = recv(sock, size)
+            except (OSError, ConnectionError, struct.error) as e:
+                self.get_logger().warn(f'camera stream {self.tcp_address}: {e}; retrying',
+                                       throttle_duration_sec=10.0)
+                time.sleep(1.0)
+
     def read(self):
+        if self.backend == 'tcp':
+            jpeg, self.tcp_frame = self.tcp_frame, None
+            if jpeg is None:
+                return None
+            return cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
         if self.picam is not None:
             return self.picam.capture_array()       # 'RGB888' is BGR in memory
         ok, frame = self.capture.read()

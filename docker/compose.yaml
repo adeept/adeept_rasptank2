@@ -1,0 +1,17 @@
+# En la Raspberry Pi:  docker compose -f docker/compose.yaml up -d
+services:
+  rasptank:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: rasptank-ros2:humble
+    container_name: rasptank
+    restart: unless-stopped
+    network_mode: host          # DDS necesita la red del anfitrión
+    ipc: host
+    privileged: true            # I2C (PCA9685, ADS7830) y GPIO (ultrasonido, línea)
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-10}
+    volumes:
+      - /dev:/dev
+      - /sys:/sys

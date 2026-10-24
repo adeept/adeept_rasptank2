@@ -1,18 +1,18 @@
-# Carga ROS 2 Humble y el workspace del RaspTank. Uso: source scripts/ros_env.sh
-# Busca ROS en /opt/ros/humble (Ubuntu 22.04) o en un entorno de conda/pixi
-# ya activado (RoboStack).
-_RT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-set +u
+# Carga ROS 2 Humble y el workspace del RaspTank.   source scripts/ros_env.sh
+# Busca ROS en /opt/ros/humble (Ubuntu 22.04) o usa el entorno ya activado
+# (RoboStack con conda/pixi).
+_rt_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+_rt_nounset=0
+[[ $- == *u* ]] && _rt_nounset=1 && set +u      # los setup.bash de ROS no soportan -u
+if [[ -z "${ROS_DISTRO:-}" && -f /opt/ros/humble/setup.bash ]]; then
+  source /opt/ros/humble/setup.bash
+fi
 if [[ -z "${ROS_DISTRO:-}" ]]; then
-  if [[ -f /opt/ros/humble/setup.bash ]]; then
-    source /opt/ros/humble/setup.bash
-  else
-    echo "ROS 2 Humble no encontrado: instala ros-humble-desktop o activa tu entorno RoboStack" >&2
-    return 1 2>/dev/null || exit 1
-  fi
+  echo "ROS 2 Humble no encontrado: instala ros-humble-desktop o activa tu entorno RoboStack" >&2
+else
+  [[ -f "$_rt_root/ros2_ws/install/setup.bash" ]] && source "$_rt_root/ros2_ws/install/setup.bash"
+  # simulación: 41 (como RobotMK2). Con el robot real, exporta su dominio antes.
+  export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-41}"
 fi
-if [[ -f "$_RT_ROOT/ros2_ws/install/setup.bash" ]]; then
-  source "$_RT_ROOT/ros2_ws/install/setup.bash"
-fi
-set -u 2>/dev/null || true
-unset _RT_ROOT
+[[ $_rt_nounset == 1 ]] && set -u
+unset _rt_root _rt_nounset
