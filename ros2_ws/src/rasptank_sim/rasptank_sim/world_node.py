@@ -1,9 +1,15 @@
 """Light simulator of the RaspTank: the world and the sensors.
 
 The robot itself is the same as on the real one: base_node and arm_node
-with `driver: fake` publish the odometry (here the true pose) and the
-joint states, and robot_state_publisher the TF of the URDF. This node
-reads that TF and publishes what the sensors would see:
+with `driver: fake` publish the odometry and the joint states, and
+robot_state_publisher the TF of the URDF.
+
+Where the robot really is comes from the throttle base_node sends to the
+motors (/base/throttle) through the motor model of rasptank_sim.motion, with
+the errors of `robot_errors` in the world file (none by default). So, as
+on the real robot, the odometry (/odom, what the robot believes) drifts
+away from the truth unless it is calibrated. The sensors are simulated
+from the true pose and the URDF frames (TF from base_footprint):
 
   /camera/image/compressed  /camera/camera_info  synthetic camera
   /ultrasonic               sensor_msgs/Range
@@ -13,6 +19,7 @@ reads that TF and publishes what the sensors would see:
   /sim/cube_pose            geometry_msgs/PoseStamped
   /sim/cube_in_goal         std_msgs/Bool
   /sim/collision            std_msgs/Bool
+  /sim/ground_truth         nav_msgs/Odometry (where the robot really is)
 
 The gripper picks the cube up when it closes around it and drops it when
 it opens. There is no physics: the robot goes through walls, but the
@@ -25,10 +32,11 @@ import rclpy
 from rclpy.executors import ExternalShutdownException
 import yaml
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.time import Time
 from sensor_msgs.msg import BatteryState, CameraInfo, CompressedImage, JointState, Range
-from std_msgs.msg import Bool, ColorRGBA
+from std_msgs.msg import Bool, ColorRGBA, Float32MultiArray
 from tf2_ros import Buffer, TransformException, TransformListener
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -36,6 +44,7 @@ from rasptank_core.geometry import Transform, yaw_to_quat
 from rasptank_core.vision import intrinsics_from_hfov
 from rasptank_interfaces.msg import LineSensors
 
+from .motion import MotorErrors, TrueMotion
 from .render import Renderer
 from .world import World
 
@@ -65,7 +74,10 @@ class WorldNode(Node):
         if not world_file:
             raise ValueError('world_file parameter is required')
         with open(world_file) as f:
-            self.world = World(yaml.safe_load(f))
+            config = yaml.safe_load(f)
+        self.world = World(config)
+        self.motion = TrueMotion(MotorErrors.from_config(config.get('robot_errors')))
+        self.last_throttle = None
         self.renderer = Renderer(self.world)
         self.K = intrinsics_from_hfov(self.width, self.height, hfov)
         self.gripper = None
@@ -82,7 +94,9 @@ class WorldNode(Node):
         self.cube_pub = self.create_publisher(PoseStamped, 'sim/cube_pose', 10)
         self.in_goal_pub = self.create_publisher(Bool, 'sim/cube_in_goal', 10)
         self.collision_pub = self.create_publisher(Bool, 'sim/collision', 10)
+        self.truth_pub = self.create_publisher(Odometry, 'sim/ground_truth', 10)
         self.create_subscription(JointState, 'joint_states', self.on_joints, 10)
+        self.create_subscription(Float32MultiArray, 'base/throttle', self.on_throttle, 50)
 
         self.create_timer(1.0 / p('camera_rate', 10.0).value, self.publish_camera)
         self.create_timer(0.1, self.publish_ultrasonic)
@@ -95,10 +109,31 @@ class WorldNode(Node):
     # ------------------------------------------------------------ helpers
 
     def lookup(self, frame):
+        """True pose of a robot frame in the world: truth @ (base_footprint -> frame)."""
+        p = self.motion.pose
+        base = Transform.from_pose2d(p.x, p.y, p.yaw)
+        if frame == 'base_footprint':
+            return base
         try:
-            return tf_to_transform(self.tf_buffer.lookup_transform(self.fixed_frame, frame, Time()))
+            tf = self.tf_buffer.lookup_transform('base_footprint', frame, Time())
         except TransformException:
             return None
+        return base @ tf_to_transform(tf)
+
+    def on_throttle(self, msg):
+        now = self.get_clock().now().nanoseconds * 1e-9
+        if self.last_throttle is not None and len(msg.data) == 2:
+            dt = min(0.1, now - self.last_throttle)
+            p = self.motion.step(msg.data[0], msg.data[1], dt)
+            truth = Odometry()
+            truth.header.stamp = self.stamp()
+            truth.header.frame_id = self.fixed_frame
+            truth.child_frame_id = 'base_footprint'
+            truth.pose.pose.position.x, truth.pose.pose.position.y = p.x, p.y
+            q = yaw_to_quat(p.yaw)
+            truth.pose.pose.orientation.z, truth.pose.pose.orientation.w = q[2], q[3]
+            self.truth_pub.publish(truth)
+        self.last_throttle = now
 
     def stamp(self):
         return self.get_clock().now().to_msg()
@@ -263,6 +298,15 @@ class WorldNode(Node):
             c = w.cube
             col = (c.color[2] / 255, c.color[1] / 255, c.color[0] / 255)
             out.markers.append(self._box('cube', 0, *c.position, c.yaw, (c.size,) * 3, col))
+        # where the robot really is (the RobotModel shows where it believes it is)
+        p = self.motion.pose
+        out.markers.append(self._box('robot_real', 0, p.x, p.y, 0.03, p.yaw, (0.22, 0.15, 0.06),
+                                     (1.0, 0.55, 0.0, 0.35)))
+        arrow = self._marker('robot_real', 1, Marker.ARROW, (1.0, 0.55, 0.0), (0.15, 0.015, 0.015))
+        arrow.pose.position.x, arrow.pose.position.y, arrow.pose.position.z = p.x, p.y, 0.07
+        q = yaw_to_quat(p.yaw)
+        arrow.pose.orientation.z, arrow.pose.orientation.w = q[2], q[3]
+        out.markers.append(arrow)
         self.marker_pub.publish(out)
 
 

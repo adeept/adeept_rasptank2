@@ -214,10 +214,11 @@ class BaseNode(Node):
         separation = self.param('track_separation')
         max_speed = self.param('max_track_speed')
         left, right = saturate_tracks(*twist_to_tracks(v, w, separation), max_speed)
-        t_left, t_right = tracks_to_throttle(left, right, max_speed, self.param('min_throttle'))
+        # gains act on the track speed, before the dead band compensation
         k = battery_factor(self.param('battery_reference'), self.voltage)
-        t_left = max(-1.0, min(1.0, t_left * self.param('left_gain') * k))
-        t_right = max(-1.0, min(1.0, t_right * self.param('right_gain') * k))
+        t_left, t_right = tracks_to_throttle(left * self.param('left_gain') * k,
+                                             right * self.param('right_gain') * k,
+                                             max_speed, self.param('min_throttle'))
         self.motors.set(self.left_sign * t_left, self.right_sign * t_right)
         self.throttle_pub.publish(Float32MultiArray(data=[float(t_left), float(t_right)]))
         self.beats += 1

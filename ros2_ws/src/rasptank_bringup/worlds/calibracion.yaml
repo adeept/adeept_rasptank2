@@ -1,0 +1,14 @@
+# Mundo para practicar la calibración de la odometría.
+# El robot tiene errores como uno real: los encuentra la calibración
+# (manual con "cinta métrica" = /sim/ground_truth, o automática con el ArUco).
+# El robot empieza en (0, 0) mirando al marcador, a 1 m.
+arena: {center: [0.3, 0.0], size: [3.0, 3.0], wall_height: 0.15}
+goal: {x: 1.0, y: 0.0, yaw: 3.14159, marker_id: 0, marker_size: 0.08, board: [0.14, 0.16],
+       area_radius: 0.1}
+robot_errors:
+  left_scale: 0.92        # la oruga izquierda va un 8 % más lenta
+  right_scale: 1.0
+  max_track_speed: 0.22   # m/s reales a tope (robot.yaml supone 0.25)
+  dead_band: 0.12         # por debajo no se mueve
+  turn_slip: 1.3          # gira menos de lo que cree
+  noise: 0.02
