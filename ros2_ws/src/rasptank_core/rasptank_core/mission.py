@@ -16,7 +16,7 @@ failed and it goes back to APROXIMAR_CUBO (up to `max_retries` times).
 Any timeout ends in FALLO. `stop()` goes back to ESPERA from any state.
 """
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from .kinematics import Pose2D, clamp

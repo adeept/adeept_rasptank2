@@ -31,9 +31,9 @@ from .drivers import FakeServos, PcaServos
 
 
 class ArmNode(Node):
-    def __init__(self):
+    def __init__(self, **kwargs):
         super().__init__('arm_node', allow_undeclared_parameters=True,
-                         automatically_declare_parameters_from_overrides=True)
+                         automatically_declare_parameters_from_overrides=True, **kwargs)
 
         def p(name, default):
             if not self.has_parameter(name):
