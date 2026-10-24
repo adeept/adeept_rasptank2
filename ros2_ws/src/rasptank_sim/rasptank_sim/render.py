@@ -113,12 +113,15 @@ class Renderer:
                               GOAL_AREA, two_sided=True))
         return faces
 
+    def wall_faces(self):
+        w = self.world
+        return [Face([(a[0], a[1], 0), (b[0], b[1], 0), (b[0], b[1], w.wall_height),
+                      (a[0], a[1], w.wall_height)], WALL, two_sided=True)
+                for a, b in w.wall_segments()]
+
     def solid_faces(self):
         w = self.world
         faces = []
-        for a, b in w.wall_segments():
-            faces.append(Face([(a[0], a[1], 0), (b[0], b[1], 0), (b[0], b[1], w.wall_height),
-                               (a[0], a[1], w.wall_height)], WALL, two_sided=True))
         for o in w.obstacles:
             faces += _box_faces(o.x, o.y, o.yaw, o.size[0], o.size[1], 0.0, o.height, o.color)
         if w.cube is not None:
@@ -160,6 +163,10 @@ class Renderer:
                      two_sided=True)
         self._draw(img, floor, T, K, rect, 1.0)
         for face in self.floor_faces():
+            self._draw(img, face, T, K, rect, 1.0)
+        # the walls surround everything else: drawing them first avoids the
+        # painter's algorithm putting a long wall in front of what it hides
+        for face in self.wall_faces():
             self._draw(img, face, T, K, rect, 1.0)
         solids = []
         for face in self.solid_faces():

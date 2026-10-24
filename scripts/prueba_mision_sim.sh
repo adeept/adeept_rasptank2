@@ -11,10 +11,19 @@ source "$ROOT/scripts/ros_env.sh"
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-77}"
 
 LOG="$(mktemp -t rasptank_sim.XXXXXX.log)"
-ros2 launch rasptank_bringup sim.launch.py world:="$WORLD" rviz:=false mission:=true \
+setsid ros2 launch rasptank_bringup sim.launch.py world:="$WORLD" rviz:=false mission:=true \
   autostart:=true >"$LOG" 2>&1 &
 LAUNCH_PID=$!
-trap 'kill -INT $LAUNCH_PID 2>/dev/null; wait $LAUNCH_PID 2>/dev/null' EXIT
+
+stop_sim() {
+  kill -INT -- -"$LAUNCH_PID" 2>/dev/null
+  for _ in $(seq 20); do
+    kill -0 "$LAUNCH_PID" 2>/dev/null || return
+    sleep 0.5
+  done
+  kill -KILL -- -"$LAUNCH_PID" 2>/dev/null
+}
+trap stop_sim EXIT
 
 python3 "$ROOT/scripts/comprobar_mision.py" "$TIMEOUT"
 RESULT=$?
