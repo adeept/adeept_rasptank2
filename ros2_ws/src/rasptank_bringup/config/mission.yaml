@@ -1,0 +1,18 @@
+# Parámetros de la misión (rasptank_core/mission.py, MissionParams).
+mission_node:
+  ros__parameters:
+    cube_height: 0.02          # m, altura del centro del cubo
+    max_linear: 0.12
+    max_angular: 0.8
+    grasp_reach: 0.165         # m delante del robot donde baja la pinza (pre_coger)
+    final_gap: 0.12            # m de avance final a ciegas
+    drop_distance: 0.26        # m del marcador donde suelta el cubo
+    search_turn_time: 0.5      # s girando...
+    search_look_time: 0.7      # ...y s parado mirando (detector lento)
+    max_retries: 2
+
+route_node:
+  ros__parameters:
+    tolerance: 0.05
+    max_linear: 0.15
+    max_angular: 1.0

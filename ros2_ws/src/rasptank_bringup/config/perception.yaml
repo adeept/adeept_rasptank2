@@ -1,0 +1,16 @@
+detector_node:
+  ros__parameters:
+    cube_detector: color       # color o yolo
+    # rojo en HSV (OpenCV: H 0-180): dos rangos porque el rojo da la vuelta
+    #           H   S    V     H   S    V
+    hsv_ranges: [0, 120, 70,   10, 255, 255,
+                 170, 120, 70, 180, 255, 255]
+    min_area: 80
+    cube_size: 0.04            # m, lado del cubo
+    aruco_dictionary: DICT_4X4_50
+    goal_marker_id: 0
+    marker_size: 0.08          # m, lado del marcador negro (sin el borde blanco)
+    yolo_model: ""             # .onnx exportado con tools/yolo/entrenar_yolo.py
+    yolo_input: 320
+    yolo_confidence: 0.5
+    yolo_classes: [cubo, meta]

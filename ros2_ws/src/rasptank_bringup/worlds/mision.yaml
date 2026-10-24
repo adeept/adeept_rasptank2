@@ -1,0 +1,8 @@
+# Mundo para la misión: coger el cubo rojo y llevarlo a la meta (ArUco 0).
+# El robot empieza en (0, 0) mirando hacia +x.
+arena: {center: [0.5, 0.2], size: [2.4, 2.2], wall_height: 0.15}
+obstacles:
+  - {x: 1.1, y: -0.55, yaw: 0.3, size: [0.2, 0.2], height: 0.12, color: [150, 100, 60]}
+cube: {x: 0.75, y: -0.25, size: 0.04, color: [40, 40, 200]}
+goal: {x: -0.45, y: 0.9, yaw: -0.6, marker_id: 0, marker_size: 0.08, board: [0.14, 0.16],
+       area_radius: 0.15}

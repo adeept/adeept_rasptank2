@@ -1,0 +1,211 @@
+<?xml version="1.0"?>
+<!--
+  RaspTank (Adeept RaspTank V4) simplificado con formas básicas.
+
+  Las medidas son aproximadas: ajústalas midiendo tu robot. Las del brazo
+  deben coincidir con ArmGeometry (rasptank_core/arm.py), que usa la misión
+  para saber dónde queda la pinza; test_description.py lo comprueba.
+
+  Ejes: x adelante, y izquierda, z arriba. Ángulos de las articulaciones en
+  radianes; 0 = servo a 90°.
+-->
+<robot name="rasptank" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- chasis y orugas -->
+  <xacro:property name="base_height" value="0.035"/>      <!-- base_link sobre el suelo -->
+  <xacro:property name="chassis_length" value="0.20"/>
+  <xacro:property name="chassis_width" value="0.11"/>
+  <xacro:property name="track_separation" value="0.12"/>  <!-- entre centros de oruga -->
+  <!-- brazo -->
+  <xacro:property name="shoulder_x" value="0.03"/>
+  <xacro:property name="shoulder_z" value="0.075"/>       <!-- sobre base_link -->
+  <xacro:property name="upper_arm" value="0.08"/>
+  <xacro:property name="forearm" value="0.06"/>
+  <xacro:property name="gripper_center" value="0.04"/>    <!-- forearm + esto = reach -->
+  <!-- cámara -->
+  <xacro:property name="camera_x" value="0.10"/>
+  <xacro:property name="camera_z" value="0.06"/>
+  <xacro:property name="servo_limit" value="1.5708"/>
+
+  <material name="chasis"><color rgba="0.15 0.15 0.15 1"/></material>
+  <material name="oruga"><color rgba="0.05 0.05 0.05 1"/></material>
+  <material name="azul"><color rgba="0.1 0.35 0.8 1"/></material>
+  <material name="plata"><color rgba="0.75 0.75 0.75 1"/></material>
+  <material name="verde"><color rgba="0.1 0.7 0.3 1"/></material>
+
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.02"/>
+      <geometry><box size="${chassis_length} ${chassis_width} 0.05"/></geometry>
+      <material name="chasis"/>
+    </visual>
+  </link>
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${base_height}"/>
+  </joint>
+
+  <xacro:macro name="track" params="side y">
+    <link name="${side}_track_link">
+      <visual>
+        <geometry><box size="0.22 0.03 0.06"/></geometry>
+        <material name="oruga"/>
+      </visual>
+    </link>
+    <joint name="${side}_track_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="${side}_track_link"/>
+      <origin xyz="0 ${y} -0.005"/>
+    </joint>
+  </xacro:macro>
+  <xacro:track side="left" y="${track_separation / 2}"/>
+  <xacro:track side="right" y="${-track_separation / 2}"/>
+
+  <!-- brazo: servos A (hombro), B (codo), C (giro de pinza), D (pinza) -->
+  <link name="arm_base_link">
+    <visual>
+      <origin xyz="0 0 -0.02"/>
+      <geometry><cylinder radius="0.02" length="0.04"/></geometry>
+      <material name="azul"/>
+    </visual>
+  </link>
+  <joint name="arm_base_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="arm_base_link"/>
+    <origin xyz="${shoulder_x} 0 ${shoulder_z}"/>
+  </joint>
+
+  <link name="upper_arm_link">
+    <visual>
+      <origin xyz="${upper_arm / 2} 0 0"/>
+      <geometry><box size="${upper_arm} 0.025 0.012"/></geometry>
+      <material name="azul"/>
+    </visual>
+  </link>
+  <joint name="shoulder_joint" type="revolute">
+    <parent link="arm_base_link"/>
+    <child link="upper_arm_link"/>
+    <axis xyz="0 -1 0"/>   <!-- positivo = arriba -->
+    <limit lower="${-servo_limit}" upper="${servo_limit}" effort="1" velocity="2"/>
+  </joint>
+
+  <link name="forearm_link">
+    <visual>
+      <origin xyz="${forearm / 2} 0 0"/>
+      <geometry><box size="${forearm} 0.02 0.012"/></geometry>
+      <material name="azul"/>
+    </visual>
+  </link>
+  <joint name="elbow_joint" type="revolute">
+    <parent link="upper_arm_link"/>
+    <child link="forearm_link"/>
+    <origin xyz="${upper_arm} 0 0"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="${-servo_limit}" upper="${servo_limit}" effort="1" velocity="2"/>
+  </joint>
+
+  <link name="gripper_base_link">
+    <visual>
+      <origin xyz="0.005 0 0"/>
+      <geometry><box size="0.01 0.04 0.02"/></geometry>
+      <material name="plata"/>
+    </visual>
+  </link>
+  <joint name="wrist_roll_joint" type="revolute">
+    <parent link="forearm_link"/>
+    <child link="gripper_base_link"/>
+    <origin xyz="${forearm} 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="${-servo_limit}" upper="${servo_limit}" effort="1" velocity="2"/>
+  </joint>
+
+  <!-- dedos: gripper_joint 0 = cerrada, positivo = abierta -->
+  <link name="left_finger_link">
+    <visual>
+      <origin xyz="0.0225 0 0"/>
+      <geometry><box size="0.045 0.005 0.015"/></geometry>
+      <material name="plata"/>
+    </visual>
+  </link>
+  <joint name="gripper_joint" type="revolute">
+    <parent link="gripper_base_link"/>
+    <child link="left_finger_link"/>
+    <origin xyz="0.01 0.012 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="${-servo_limit}" upper="${servo_limit}" effort="1" velocity="2"/>
+  </joint>
+  <link name="right_finger_link">
+    <visual>
+      <origin xyz="0.0225 0 0"/>
+      <geometry><box size="0.045 0.005 0.015"/></geometry>
+      <material name="plata"/>
+    </visual>
+  </link>
+  <joint name="right_finger_joint" type="revolute">
+    <parent link="gripper_base_link"/>
+    <child link="right_finger_link"/>
+    <origin xyz="0.01 -0.012 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="${-servo_limit}" upper="${servo_limit}" effort="1" velocity="2"/>
+    <mimic joint="gripper_joint" multiplier="-1"/>
+  </joint>
+
+  <!-- punto entre los dedos: donde queda el cubo agarrado -->
+  <link name="gripper_center_link"/>
+  <joint name="gripper_center_joint" type="fixed">
+    <parent link="gripper_base_link"/>
+    <child link="gripper_center_link"/>
+    <origin xyz="${gripper_center} 0 0"/>
+  </joint>
+
+  <!-- cámara con servo de inclinación (E): positivo = mirar hacia abajo -->
+  <link name="camera_link">
+    <visual>
+      <geometry><box size="0.015 0.03 0.025"/></geometry>
+      <material name="verde"/>
+    </visual>
+  </link>
+  <joint name="camera_tilt_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="${camera_x} 0 ${camera_z}"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="${-servo_limit}" upper="${servo_limit}" effort="1" velocity="2"/>
+  </joint>
+  <!-- convenio de las cámaras: z adelante, x derecha, y abajo -->
+  <link name="camera_optical_frame"/>
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_optical_frame"/>
+    <origin rpy="${-pi / 2} 0 ${-pi / 2}"/>
+  </joint>
+
+  <!-- ultrasonido HC-SR04 en el frontal -->
+  <link name="ultrasonic_link">
+    <visual>
+      <geometry><box size="0.01 0.045 0.02"/></geometry>
+      <material name="plata"/>
+    </visual>
+  </link>
+  <joint name="ultrasonic_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="ultrasonic_link"/>
+    <origin xyz="0.11 0 0.025"/>
+  </joint>
+
+  <!-- tres sensores de línea bajo el frontal (centro = el del medio) -->
+  <link name="line_sensor_link">
+    <visual>
+      <geometry><box size="0.01 0.04 0.005"/></geometry>
+      <material name="verde"/>
+    </visual>
+  </link>
+  <joint name="line_sensor_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="line_sensor_link"/>
+    <origin xyz="0.09 0 -0.03"/>
+  </joint>
+</robot>

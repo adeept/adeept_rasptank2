@@ -1,0 +1,91 @@
+# Parámetros del RaspTank real. En simulación se usan los mismos con
+# driver: fake (sim.launch.py lo cambia).
+#
+# Calibración (ver ROS2.md):
+#   - max_track_speed: m/s de las orugas con el motor al 100 %. Mide cuánto
+#     avanza en 2 s con /cmd_vel 0.1 y corrige hasta que la odometría cuadre.
+#   - min_throttle: si a poca velocidad las orugas no se mueven, súbelo (0.2-0.35).
+#   - left_sign / right_sign: -1 si esa oruga gira al revés.
+#   - servo_centers: grados del servo cuando la articulación está a 0 rad.
+
+base_node:
+  ros__parameters:
+    driver: pca9685
+    i2c_address: 95            # 0x5f
+    pwm_frequency: 50
+    left_channels: [15, 14]    # motor M1
+    right_channels: [12, 13]   # motor M2
+    left_sign: 1.0
+    right_sign: 1.0
+    track_separation: 0.12
+    max_track_speed: 0.25
+    min_throttle: 0.0
+    max_linear: 0.2
+    max_angular: 1.5
+    cmd_timeout: 0.5
+
+arm_node:
+  ros__parameters:
+    driver: pca9685
+    i2c_address: 95
+    #                hombro codo  giro  pinza cámara
+    servo_channels: [0,     1,    2,    3,    4]
+    servo_centers:  [90.0,  90.0, 90.0, 90.0, 90.0]
+    servo_signs:    [1.0,   -1.0, 1.0,  -1.0, 1.0]
+    servo_min:      [0.0,   0.0,  0.0,  0.0,  0.0]
+    servo_max:      [180.0, 180.0, 180.0, 180.0, 180.0]
+    max_speed: 1.5             # rad/s
+    initial_pose: plegado
+    camera_tilt: 0.35          # rad hacia abajo al arrancar
+    # Posturas con nombre (rad). Una postura puede mover solo algunas
+    # articulaciones. La misión usa: buscar, pre_coger, cerrar,
+    # transportar, soltar y abrir.
+    poses:
+      plegado:
+        shoulder_joint: 1.2
+        elbow_joint: -1.2
+        wrist_roll_joint: 0.0
+        gripper_joint: 0.0
+      buscar:                  # brazo arriba, pinza abierta, cámara al suelo
+        shoulder_joint: 1.0
+        elbow_joint: -0.6
+        wrist_roll_joint: 0.0
+        gripper_joint: 0.6
+        camera_tilt_joint: 0.35
+      pre_coger:               # pinza abierta en el suelo, 16.5 cm delante
+        shoulder_joint: 0.0
+        elbow_joint: -0.98
+        gripper_joint: 0.6
+      cerrar:
+        gripper_joint: 0.1
+      abrir:
+        gripper_joint: 0.6
+      transportar:             # brazo arriba con el cubo, cámara al frente
+        shoulder_joint: 1.0
+        elbow_joint: -0.6
+        camera_tilt_joint: 0.15
+      soltar:                  # bajar sin abrir
+        shoulder_joint: 0.0
+        elbow_joint: -0.98
+
+sensors_node:
+  ros__parameters:
+    ultrasonic_trigger: 23
+    ultrasonic_echo: 24
+    max_range: 2.0
+    line_left: 22
+    line_middle: 27
+    line_right: 17
+    line_active_high: true
+    battery: true
+
+camera_node:
+  ros__parameters:
+    backend: picamera2         # o opencv con source (ver docker/README.md)
+    source: "0"
+    width: 640
+    height: 480
+    fps: 10.0
+    jpeg_quality: 70
+    flip: false
+    hfov: 62.2                 # sin calibrar; mejor camera_matrix y distortion
