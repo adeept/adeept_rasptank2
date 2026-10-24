@@ -1,4 +1,5 @@
 """The calibration procedures against a fake robot with hidden errors."""
+# FakeSession is also used by test_flow.py
 import math
 
 import pytest
@@ -44,7 +45,7 @@ class FakeSession:
             vv, ww = (vl + vr) / 2, (vr - vl) / (0.12 * self.e['slip'])
             p.x += vv * 0.01 * math.cos(p.yaw)
             p.y += vv * 0.01 * math.sin(p.yaw)
-            p.yaw = normalize_angle(p.yaw + ww * 0.01)
+            p.yaw += ww * 0.01          # unwrapped, like Session.truth
 
     def move(self, v, w, seconds):
         if self.stopped:

@@ -17,9 +17,12 @@ el robot real, sin cambiar su código.
 6. [La misión: coger el cubo y llevarlo a la meta](#6-la-misión-coger-el-cubo-y-llevarlo-a-la-meta)
 7. [Visión y entrenamiento de un modelo](#7-visión-y-entrenamiento-de-un-modelo)
 8. [El robot real](#8-el-robot-real)
-9. [Calibración](#9-calibración)
-10. [Referencia de topics y servicios](#10-referencia-de-topics-y-servicios)
-11. [Tests](#11-tests)
+9. [Calibración del hardware](#9-calibración-del-hardware)
+10. [Calibración de la odometría](#10-calibración-de-la-odometría)
+11. [Seguridad](#11-seguridad)
+12. [La aplicación](#12-la-aplicación)
+13. [Referencia de topics y servicios](#13-referencia-de-topics-y-servicios)
+14. [Tests](#14-tests)
 
 ## 1. Arquitectura
 
@@ -47,12 +50,15 @@ de modo que el detector y la misión son exactamente los del robot real.
 | `rasptank_core` | Lógica sin ROS: cinemática, odometría, brazo, visión, máquina de estados de la misión, rutas. Con tests. |
 | `rasptank_interfaces` | Mensajes `LineSensors` y `ArmState`. |
 | `rasptank_description` | URDF/xacro del tanque, el brazo y la cámara. `display.launch.py` para verlo en RViz. |
-| `rasptank_hw` | Nodos del hardware: `base_node`, `arm_node`, `sensors_node`, `camera_node` (driver real o `fake`). |
+| `rasptank_hw` | Nodos del hardware: `base_node`, `arm_node`, `sensors_node`, `camera_node` (driver real o `fake`), `motor_watchdog_node` y `governor_node` (seguridad). |
+| `rasptank_calibration` | Calibración de la odometría, manual o automática: `ros2 run rasptank_calibration calibrar`. |
 | `rasptank_sim` | Simulador ligero (`world_node`) y generador de datasets sintéticos (`dataset_sim`). |
 | `rasptank_perception` | `detector_node` (cubo por color o YOLO, meta por ArUco) y `capture_node` (fotos para el dataset). |
 | `rasptank_mission` | `mission_node` (coger y llevar el cubo) y `route_node` (rutas por puntos). |
 | `rasptank_bringup` | Launch (`sim`, `robot`, `pc`), configuración, mundos y RViz. |
 | `rasptank_alumno` | API `Robot` en español y ejemplos `ej01`…`ej07`, plantilla de nodo. |
+
+Y fuera del workspace, la **aplicación** del PC: `./scripts/app.sh` ([tools/app](tools/app/README.md)).
 
 El código antiguo de Adeept (`web/`, `examples/`, `Client/`) sigue igual y
 se puede usar sin ROS.
@@ -241,24 +247,93 @@ programas del alumno se vean sin configurar nada. Si la WiFi del aula bloquea el
 se ven entre PC y robot, configura un servidor de descubrimiento de Fast DDS
 o `ROS_STATIC_PEERS`/`ROS_DISCOVERY_SERVER`.
 
-## 9. Calibración
+## 9. Calibración del hardware
 
 En `ros2_ws/src/rasptank_bringup/config/robot.yaml`:
 
 | Qué | Cómo |
 |---|---|
 | Sentido de las orugas | `ros2 topic pub -r 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.05}}"`: si una oruga va hacia atrás, `left_sign`/`right_sign: -1`. Si al pedir giro a la izquierda gira a la derecha, intercambia `left_channels` y `right_channels`. |
-| Velocidad | Ordena 0,1 m/s durante 3 s y mide lo que avanza. Ajusta `max_track_speed` hasta que coincida con `/odom`. |
-| Zona muerta | Si a baja velocidad no se mueve, sube `min_throttle` (0,2–0,35). |
+| Velocidad, zona muerta, giro | Con la calibración de la odometría ([sección 10](#10-calibración-de-la-odometría)), desde la app o con `calibrar`. |
 | Servos | `servo_centers`: grados del servo con la articulación a 0 rad (brazo horizontal, pinza cerrada, cámara al frente). `servo_signs: -1` si va al revés. Ajusta después las posturas (`poses`), sobre todo `pre_coger`, para que la pinza quede a 1–2 cm del suelo y 16,5 cm delante del centro del robot. |
 | Cámara | Pasa la imagen a raw con `ros2 run image_transport republish compressed raw --ros-args -r in/compressed:=/camera/image/compressed -r out:=/camera/image_raw`, calibra con un tablero de ajedrez (`ros2 run camera_calibration cameracalibrator --size 8x6 --square 0.025 image:=/camera/image_raw`) y copia `camera_matrix` y `distortion` a `camera_node`. Sin calibrar se usa `hfov`. |
 | Medidas | Si el robot no coincide con el URDF (`rasptank_description/urdf/rasptank.urdf.xacro`), corrige las medidas allí y en `ArmGeometry` (un test comprueba que coinciden). |
 
-## 10. Referencia de topics y servicios
+## 10. Calibración de la odometría
+
+Sin encoders, el robot calcula dónde está a partir de lo que pide a los
+motores, y se equivoca de forma **sistemática**: una oruga más lenta (se
+desvía en recto), menos velocidad de la supuesta, una zona muerta donde no se
+mueve, y deslizamiento al girar (gira menos de lo que cree). La calibración
+mide esos errores con unos movimientos y los corrige en `base_node`:
+
+| Prueba | Qué mide | Qué ajusta |
+|---|---|---|
+| Zona muerta | potencia a la que arrancan las orugas | `min_throttle` |
+| Recta (1 m manual, 30 cm ida y vuelta automática) | distancia real y desvío lateral | `max_track_speed`, `left_gain`, `right_gain` |
+| Giro (una vuelta manual; oscilaciones y vueltas automáticas) | ángulo real | `track_separation` (efectiva) |
+| Batería (opcional) | voltaje al calibrar | `battery_reference`: sube la potencia cuando la batería baja |
+| Comprobación | cuadrado de 50 cm (manual) o ida + vuelta + regreso (automática) | nada: dice cuánto error queda |
+
+- **Manual:** cinta métrica y cinta adhesiva para marcar la posición inicial;
+  1,5 m de suelo libre.
+- **Automática:** el marcador ArUco de la meta de pie a ~1 m delante del robot,
+  con ~50 cm libres, y el detector en marcha (`pc.launch.py` o la simulación).
+  La cámara mide los movimientos: la distancia por la posición del marcador
+  (no por su orientación, que con un marcador pequeño es imprecisa) y el giro
+  por el ángulo con el que se ve.
+
+Desde la **app** (pestaña Calibración) o en el terminal:
+
+```bash
+ros2 run rasptank_calibration calibrar            # manual
+ros2 run rasptank_calibration calibrar --auto     # automática
+```
+
+El resultado se aplica en caliente y, al guardarlo, queda en
+`~/.rasptank/calibracion.yaml` **del robot** (en Docker, en un volumen), que
+`base_node` carga al arrancar por encima de `robot.yaml`. Calibra sobre el
+suelo donde se va a usar el robot; los errores aleatorios (cada giro patina
+distinto) no se corrigen, así que las rutas largas siguen acumulando error.
+
+**En simulación**, el mundo `calibracion` esconde errores de ese tipo
+(`robot_errors` en el YAML del mundo: ningún otro mundo los tiene). En RViz,
+la caja naranja es dónde está el robot de verdad y el modelo, dónde cree que
+está. Con la **cinta métrica virtual** (`--medidas-sim` o la casilla de la app)
+las medidas salen de `/sim/ground_truth`. Ejercicio: calibrar y comprobar que
+se recuperan los errores escondidos. En una prueba típica, sin calibrar el
+cuadrado de 50 cm acaba a más de 1 m del inicio; calibrado, a unos pocos cm.
+
+## 11. Seguridad
+
+- **Vigilante de órdenes** en `base_node`: sin `/cmd_vel` durante 0,5 s, para.
+- **Vigilante de motores** (`motor_watchdog_node`, proceso aparte): si
+  `base_node` deja de dar señales de vida (`/base/heartbeat`), apaga
+  directamente los canales de los motores del PCA9685, que si no seguirían con
+  la última potencia. `base_node` se reinicia solo (`respawn`) y lo primero que
+  hace es parar los motores.
+- **Gobernador** (`governor_node`, activo por defecto, `governor:=false` para
+  quitarlo): limita la velocidad hacia delante con el ultrasonido (frena desde
+  45 cm y no avanza a menos de 12 cm). Girar y retroceder siempre se puede. No
+  ve objetos bajos (el cubo) ni fuera de su cono. Todos publican en `/cmd_vel`
+  como siempre; el gobernador pasa la orden a `base_node` por `/cmd_vel_safe`.
+- **Parada de emergencia:** `/emergency_stop` (la app tiene un botón siempre
+  visible). Y, en el suelo, el interruptor de la batería a mano.
+
+## 12. La aplicación
+
+`./scripts/app.sh` (`--dominio 10` para un robot real): estado en vivo,
+parada de emergencia, mover, calibración y simulación. Ver
+[tools/app/README.md](tools/app/README.md).
+
+## 13. Referencia de topics y servicios
 
 | Topic | Tipo | Quién |
 |---|---|---|
-| `/cmd_vel` | `geometry_msgs/Twist` | alumno, misión, rutas → base |
+| `/cmd_vel` | `geometry_msgs/Twist` | alumno, misión, rutas, app → gobernador → base |
+| `/cmd_vel_safe` | `geometry_msgs/Twist` | gobernador → base |
+| `/base/heartbeat`, `/base/throttle`, `/base/driver` | | base (vigilante, simulador, app) |
+| `/governor/active` | `std_msgs/Bool` | gobernador: true mientras frena |
 | `/odom` + TF `odom→base_footprint` | `nav_msgs/Odometry` | base |
 | `/emergency_stop` | `std_msgs/Bool` (latched) | cualquiera → base, brazo, misión |
 | `/arm/pose` | `std_msgs/String` | postura con nombre → brazo |
@@ -273,14 +348,17 @@ En `ros2_ws/src/rasptank_bringup/config/robot.yaml`:
 | `/detections/image` | `sensor_msgs/Image` | detector (para RViz) |
 | `/mission/state` | `std_msgs/String` | misión |
 | `/route/planned`, `/route/traveled` | `nav_msgs/Path` | rutas |
-| `/sim/cube_pose`, `/sim/cube_in_goal`, `/sim/collision` | | simulador |
+| `/sim/cube_pose`, `/sim/cube_in_goal`, `/sim/collision`, `/sim/ground_truth` | | simulador |
 
 Servicios (`std_srvs/Trigger`): `/mission/start`, `/mission/stop`,
-`/route/start`, `/route/stop`, `/route/clear`.
+`/route/start`, `/route/stop`, `/route/clear`, `/base/save_calibration`,
+`/base/reset_calibration`.
 
-## 11. Tests
+## 14. Tests
 
 ```bash
-./scripts/test.sh          # tests unitarios (lógica, simulador, visión, nodos con driver fake)
-./scripts/test.sh --e2e    # y además la misión completa en simulación
+./scripts/test.sh                  # tests unitarios (lógica, simulador, visión, nodos, calibración)
+./scripts/test.sh --e2e            # y además la misión completa en simulación
+./scripts/test.sh --calibracion    # y la calibración manual y automática simuladas (~10 min)
+(cd tools/app && QT_QPA_PLATFORM=offscreen python3 -m pytest tests)   # la app
 ```

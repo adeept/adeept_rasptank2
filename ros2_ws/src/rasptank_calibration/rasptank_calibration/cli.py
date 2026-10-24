@@ -56,17 +56,10 @@ class Terminal:
     # ------------------------------------------------------------ truth helpers (simulation)
 
     def truth(self):
-        return self.s.truth if self.s.simulated else None
+        return self.s.truth_mark()
 
     def truth_since(self, start):
-        """(forward cm, left cm, turned deg) since `start`, in the start frame."""
-        now = self.truth()
-        if start is None or now is None:
-            return None
-        dx, dy = now[0] - start[0], now[1] - start[1]
-        c, s = math.cos(-start[2]), math.sin(-start[2])
-        return (100 * (c * dx - s * dy), 100 * (s * dx + c * dy),
-                math.degrees(now[2] - start[2]))
+        return self.s.truth_since(start)
 
     # ------------------------------------------------------------ steps
 

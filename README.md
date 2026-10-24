@@ -12,6 +12,10 @@ simulación que en el robot real.
 ros2 run rasptank_alumno ej01_avanzar            # en otro terminal (source scripts/ros_env.sh)
 ```
 
+Aplicación del PC (estado, parada de emergencia, mover, **calibración de la
+odometría** manual o automática, simulación): `./scripts/app.sh` —
+[tools/app/README.md](tools/app/README.md).
+
 Guía completa: **[ROS2.md](ROS2.md)**. Robot real: [docker/README.md](docker/README.md).
 Entrenar un modelo: [tools/yolo/README.md](tools/yolo/README.md).
 

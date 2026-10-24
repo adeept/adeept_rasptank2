@@ -10,6 +10,8 @@ for pkg in rasptank_core rasptank_description rasptank_sim rasptank_perception r
   echo "== $pkg"
   (cd "$ROOT/ros2_ws/src/$pkg" && python3 -m pytest -q test) || FAILED=1
 done
+echo "== app"
+(cd "$ROOT/tools/app" && QT_QPA_PLATFORM=offscreen python3 -m pytest -q tests) || FAILED=1
 if [[ " $* " == *" --e2e "* ]]; then
   echo "== misión simulada"
   "$ROOT/scripts/prueba_mision_sim.sh" mision 180 || FAILED=1

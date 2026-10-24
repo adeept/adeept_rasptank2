@@ -38,8 +38,12 @@ class Aborted(CalibrationError):
 
 
 class Session:
+    """`node`: an existing node already spun by someone else (the app);
+    without it the session creates its own node and spinning thread."""
+
     def __init__(self, base_node='base_node', node=None):
         self.own_context = False
+        self.own_node = node is None
         if node is None:
             if not rclpy.ok():
                 try:
@@ -73,10 +77,12 @@ class Session:
         n.create_subscription(Detection2DArray, 'detections', self._on_detections, 10)
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, n)
-        self.executor = SingleThreadedExecutor()
-        self.executor.add_node(n)
-        self.thread = threading.Thread(target=self._spin, daemon=True)
-        self.thread.start()
+        self.executor = None
+        if self.own_node:
+            self.executor = SingleThreadedExecutor()
+            self.executor.add_node(n)
+            self.thread = threading.Thread(target=self._spin, daemon=True)
+            self.thread.start()
 
     def _spin(self):
         try:
@@ -86,8 +92,9 @@ class Session:
 
     def close(self):
         self.stop_robot()
-        self.executor.shutdown(timeout_sec=1.0)
-        self.node.destroy_node()
+        if self.own_node:
+            self.executor.shutdown(timeout_sec=1.0)
+            self.node.destroy_node()
         if self.own_context and rclpy.ok():
             rclpy.shutdown()
 
@@ -140,6 +147,22 @@ class Session:
     @property
     def simulated(self):
         return self.driver == 'fake'
+
+    # ------------------------------------------------------------ virtual tape (simulation)
+
+    def truth_mark(self):
+        """True pose now (simulation only), to measure from it later."""
+        return self.truth if self.simulated else None
+
+    def truth_since(self, start):
+        """(forward cm, left cm, turned deg) since `start`, in the start frame."""
+        now = self.truth_mark()
+        if start is None or now is None:
+            return None
+        dx, dy = now[0] - start[0], now[1] - start[1]
+        c, s = math.cos(-start[2]), math.sin(-start[2])
+        return (100 * (c * dx - s * dy), 100 * (s * dx + c * dy),
+                math.degrees(now[2] - start[2]))
 
     # ------------------------------------------------------------ parameters
 
