@@ -204,8 +204,8 @@ El detector (`config/perception.yaml`) tiene tres niveles:
 
 Proceso de entrenamiento: ver [tools/yolo/README.md](tools/yolo/README.md).
 En resumen: capturar fotos con `capture_node`, etiquetarlas, entrenar con
-`tools/yolo/entrenar_yolo.py` (PC con GPU o Google Colab), y poner el `.onnx`
-en `perception.yaml` (`cube_detector: yolo`). El simulador genera también
+`tools/yolo/entrenar_yolo.py` (PC con GPU o Google Colab), y lanzar con
+`cube_detector:=yolo yolo_model:=/ruta/cubo_meta.onnx`. El simulador genera también
 datasets sintéticos ya etiquetados (`ros2 run rasptank_sim dataset_sim`).
 
 ## 8. El robot real

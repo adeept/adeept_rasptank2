@@ -65,15 +65,14 @@ más datos o con más épocas? ¿y si quitas el preentrenamiento
 
 ## 5. Usarlo en el robot
 
-En `ros2_ws/src/rasptank_bringup/config/perception.yaml`:
+Al lanzar:
 
-```yaml
-cube_detector: yolo
-yolo_model: /home/alumno/cubo_meta.onnx
-yolo_confidence: 0.5
+```bash
+ros2 launch rasptank_bringup pc.launch.py cube_detector:=yolo yolo_model:=$HOME/cubo_meta.onnx
+./scripts/sim.sh mision cube_detector:=yolo yolo_model:=$HOME/cubo_meta.onnx   # en simulación
 ```
 
-y vuelve a compilar (`./scripts/build_ros2.sh rasptank_bringup`) o pásalo al
-lanzar. El detector usa OpenCV DNN: el PC no necesita PyTorch. El registro
+(la confianza mínima, `yolo_confidence`, está en `config/perception.yaml`).
+El detector usa OpenCV DNN: el PC no necesita PyTorch. El registro
 del detector dice cuántos milisegundos tarda por imagen. La meta se sigue
 detectando con el marcador ArUco, que además da la distancia exacta.

@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # Prueba de extremo a extremo, sin pantalla: lanza la simulación con la
 # misión y comprueba que el cubo acaba en la meta.
-#   ./scripts/prueba_mision_sim.sh [mundo] [segundos]
+#   ./scripts/prueba_mision_sim.sh [mundo] [segundos] [argumentos de launch...]
+#   ./scripts/prueba_mision_sim.sh mision 180 cube_detector:=yolo yolo_model:=$HOME/cubo_meta.onnx
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORLD="${1:-mision}"
 TIMEOUT="${2:-180}"
+shift 2 2>/dev/null || shift $#
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-77}"     # no choca con una simulación abierta (41)
 source "$ROOT/scripts/ros_env.sh"
 
 LOG="$(mktemp -t rasptank_sim.XXXXXX.log)"
 setsid ros2 launch rasptank_bringup sim.launch.py world:="$WORLD" rviz:=false mission:=true \
-  autostart:=true >"$LOG" 2>&1 &
+  autostart:=true "$@" >"$LOG" 2>&1 &
 LAUNCH_PID=$!
 
 stop_sim() {
