@@ -29,7 +29,7 @@ class MotorWatchdogNode(Node):
         p = self.declare_parameter
         driver = p('driver', 'fake').value
         channels = list(p('left_channels', [15, 14]).value) + list(p('right_channels', [12, 13]).value)
-        self.heartbeat = CommandWatchdog(p('timeout', 0.3).value)
+        self.heartbeat = CommandWatchdog(p('timeout', 1.0).value)
         self.repeat = p('repeat', 0.5).value
         if driver == 'pca9685':
             self.killer = PcaMotorKiller(p('i2c_address', 0x5f).value, channels)

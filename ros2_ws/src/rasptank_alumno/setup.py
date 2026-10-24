@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 package_name = 'rasptank_alumno'
 ejemplos = ['ej01_avanzar', 'ej02_cuadrado', 'ej03_evitar_obstaculos', 'ej04_seguir_linea',
-            'ej05_ruta', 'ej06_brazo', 'ej07_coger_cubo', 'plantilla_nodo']
+            'ej05_ruta', 'ej06_brazo', 'ej07_coger_cubo', 'ej08_luces_sonido', 'plantilla_nodo']
 
 setup(
     name=package_name,

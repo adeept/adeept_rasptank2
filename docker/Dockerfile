@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Librerías del hardware (las mismas que usa el código de Adeept en web/)
 RUN pip3 install --no-cache-dir \
       adafruit-blinka adafruit-circuitpython-pca9685 adafruit-circuitpython-motor \
-      RPi.GPIO gpiozero smbus2
+      RPi.GPIO gpiozero smbus2 spidev numpy
 
 WORKDIR /ws
 COPY ros2_ws/src src

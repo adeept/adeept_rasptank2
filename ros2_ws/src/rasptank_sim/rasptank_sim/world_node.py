@@ -34,6 +34,7 @@ import yaml
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile
 from rclpy.time import Time
 from sensor_msgs.msg import BatteryState, CameraInfo, CompressedImage, JointState, Range
 from std_msgs.msg import Bool, ColorRGBA, Float32MultiArray
@@ -97,6 +98,9 @@ class WorldNode(Node):
         self.truth_pub = self.create_publisher(Odometry, 'sim/ground_truth', 10)
         self.create_subscription(JointState, 'joint_states', self.on_joints, 10)
         self.create_subscription(Float32MultiArray, 'base/throttle', self.on_throttle, 50)
+        latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.leds = None
+        self.create_subscription(ColorRGBA, 'leds/state', self.on_leds, latched)
 
         self.create_timer(1.0 / p('camera_rate', 10.0).value, self.publish_camera)
         self.create_timer(0.1, self.publish_ultrasonic)
@@ -119,6 +123,9 @@ class WorldNode(Node):
         except TransformException:
             return None
         return base @ tf_to_transform(tf)
+
+    def on_leds(self, msg):
+        self.leds = msg
 
     def on_throttle(self, msg):
         now = self.get_clock().now().nanoseconds * 1e-9
@@ -307,6 +314,16 @@ class WorldNode(Node):
         q = yaw_to_quat(p.yaw)
         arrow.pose.orientation.z, arrow.pose.orientation.w = q[2], q[3]
         out.markers.append(arrow)
+        if self.leds is not None:
+            # the LED strip, on top of the robot as RViz draws it (believed pose)
+            c = self.leds
+            lit = max(c.r, c.g, c.b) > 0.01
+            led = self._marker('leds', 0, Marker.CYLINDER,
+                               (c.r, c.g, c.b, 0.9) if lit else (0.2, 0.2, 0.2, 0.6),
+                               (0.06, 0.06, 0.012))
+            led.header.frame_id = 'base_link'
+            led.pose.position.x, led.pose.position.z = -0.05, 0.055
+            out.markers.append(led)
         self.marker_pub.publish(out)
 
 

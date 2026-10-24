@@ -36,7 +36,7 @@ motor_watchdog:
     i2c_address: 95
     left_channels: [15, 14]    # los mismos que base_node
     right_channels: [12, 13]
-    timeout: 0.3               # s sin latido de base_node -> motores apagados
+    timeout: 1.0               # s sin latido de base_node -> motores apagados (no es un control de latencia: eso es cmd_timeout)
 
 governor:
   ros__parameters:
@@ -99,6 +99,14 @@ sensors_node:
     line_right: 17
     line_active_high: true
     battery: true
+
+signals_node:
+  ros__parameters:
+    driver: real               # LEDs WS2812 por SPI (actívalo con raspi-config) y zumbador
+    led_count: 8
+    led_order: GRB
+    spi_bus: 0                 # MOSI = GPIO 10
+    buzzer_pin: 18
 
 camera_node:
   ros__parameters:

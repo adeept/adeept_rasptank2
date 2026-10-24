@@ -24,6 +24,7 @@ setup(
             'camera_node = rasptank_hw.camera_node:main',
             'motor_watchdog_node = rasptank_hw.motor_watchdog_node:main',
             'governor_node = rasptank_hw.governor_node:main',
+            'signals_node = rasptank_hw.signals_node:main',
         ],
     },
 )

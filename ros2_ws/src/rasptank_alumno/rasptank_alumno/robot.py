@@ -26,7 +26,7 @@ from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from sensor_msgs.msg import BatteryState, JointState, Range
-from std_msgs.msg import String
+from std_msgs.msg import ColorRGBA, String
 from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray
 
@@ -86,6 +86,8 @@ class Robot:
         self._cmd_pub = n.create_publisher(Twist, 'cmd_vel', 10)
         self._pose_pub = n.create_publisher(String, 'arm/pose', 10)
         self._joint_pub = n.create_publisher(JointState, 'arm/joint_command', 10)
+        self._leds_pub = n.create_publisher(ColorRGBA, 'leds', 10)
+        self._buzzer_pub = n.create_publisher(String, 'buzzer', 10)
         n.create_subscription(Odometry, 'odom', lambda m: self._set('_odom', m), 10)
         n.create_subscription(Range, 'ultrasonic', lambda m: self._set('_range', m),
                               qos_profile_sensor_data)
@@ -287,6 +289,24 @@ class Robot:
                 return
             time.sleep(0.05)
         print(f'AVISO: el brazo no confirma la postura {postura!r}')
+
+    # ------------------------------------------------------------ luces y sonido
+
+    def luces(self, rojo, verde, azul):
+        """Color de los LEDs, cada componente de 0 a 255: robot.luces(0, 255, 0)."""
+        self._leds_pub.publish(ColorRGBA(r=rojo / 255.0, g=verde / 255.0, b=azul / 255.0, a=1.0))
+
+    def apagar_luces(self):
+        self.luces(0, 0, 0)
+
+    def pitar(self, nota='A5', segundos=0.2):
+        """Una nota (C4, D#5, A5...) durante unos segundos, sin esperar."""
+        self.melodia(f'{nota}:{segundos}')
+
+    def melodia(self, notas):
+        """Varias notas "nota:segundos" separadas por espacios; "-" es un silencio:
+        robot.melodia('C5:0.2 E5:0.2 G5:0.4'). No espera a que termine."""
+        self._buzzer_pub.publish(String(data=notas))
 
     # ------------------------------------------------------------ fin
 

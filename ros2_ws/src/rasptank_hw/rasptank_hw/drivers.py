@@ -164,3 +164,57 @@ class Ads7830Battery:
         """Battery voltage."""
         raw = self.bus.read_byte_data(self.address, self.cmd)
         return raw / 255.0 * self.vref / self.divider
+
+
+class FakeSignals:
+    """LEDs and buzzer that only remember what they were told."""
+
+    def __init__(self):
+        self.colors = []
+        self.tone = None
+
+    def show(self, colors):
+        self.colors = list(colors)
+
+    def play(self, frequency):
+        self.tone = frequency
+
+    def stop(self):
+        self.tone = None
+
+    def close(self):
+        self.show([(0, 0, 0)] * len(self.colors))
+        self.stop()
+
+
+class RealSignals:
+    """WS2812 strip on SPI (MOSI = GPIO 10 for spidev0.0) and the buzzer on GPIO 18."""
+
+    def __init__(self, spi_bus=0, spi_device=0, order='GRB', buzzer_pin=18):
+        import spidev
+        from gpiozero import TonalBuzzer
+
+        self.spi = spidev.SpiDev()
+        self.spi.open(spi_bus, spi_device)
+        self.spi.mode = 0
+        self.speed = int(8 / 1.25e-6) if spi_bus == 0 else int(8 / 1.0e-6)
+        self.order = order
+        self.buzzer = TonalBuzzer(buzzer_pin)
+        self.count = 0
+
+    def show(self, colors):
+        from rasptank_core.signals import ws2812_spi
+        self.count = len(colors)
+        self.spi.xfer(ws2812_spi(colors, self.order), self.speed)
+
+    def play(self, frequency):
+        from gpiozero.tones import Tone
+        self.buzzer.play(Tone(frequency=frequency))
+
+    def stop(self):
+        self.buzzer.stop()
+
+    def close(self):
+        self.show([(0, 0, 0)] * self.count)
+        self.stop()
+        self.spi.close()

@@ -26,6 +26,7 @@ def generate_launch_description():
         DeclareLaunchArgument('camera_source', default_value='0',
                               description='con opencv: dispositivo o URL del vídeo'),
         DeclareLaunchArgument('sensors', default_value='true'),
+        DeclareLaunchArgument('signals', default_value='true', description='LEDs y zumbador'),
         DeclareLaunchArgument('governor', default_value='true',
                               description='limitar la velocidad con el ultrasonido'),
         IncludeLaunchDescription(PythonLaunchDescriptionSource(
@@ -40,6 +41,8 @@ def generate_launch_description():
              parameters=[robot], condition=IfCondition(arg('governor'))),
         Node(package='rasptank_hw', executable='arm_node', name='arm_node',
              parameters=[robot]),
+        Node(package='rasptank_hw', executable='signals_node', name='signals_node',
+             parameters=[robot], condition=IfCondition(arg('signals'))),
         Node(package='rasptank_hw', executable='sensors_node', name='sensors_node',
              parameters=[robot], condition=IfCondition(arg('sensors'))),
         Node(package='rasptank_hw', executable='camera_node', name='camera_node',

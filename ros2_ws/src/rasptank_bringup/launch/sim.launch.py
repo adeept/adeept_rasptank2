@@ -54,6 +54,8 @@ def generate_launch_description():
              parameters=[config('robot.yaml')], condition=IfCondition(arg('governor'))),
         Node(package='rasptank_hw', executable='arm_node', name='arm_node',
              parameters=[config('robot.yaml'), {'driver': 'fake'}]),
+        Node(package='rasptank_hw', executable='signals_node', name='signals_node',
+             parameters=[config('robot.yaml'), {'driver': 'fake'}]),
         Node(package='rasptank_sim', executable='world_node', name='world_node',
              parameters=[{'world_file': world}]),
         Node(package='rasptank_perception', executable='detector_node', name='detector_node',

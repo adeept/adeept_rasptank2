@@ -90,7 +90,8 @@ def test_motor_watchdog_zeroes_when_heartbeat_stops(ros):
     from std_msgs.msg import UInt32
     from rasptank_hw.motor_watchdog_node import MotorWatchdogNode
 
-    dog = MotorWatchdogNode(parameter_overrides=[Parameter('repeat', value=0.1)])
+    dog = MotorWatchdogNode(parameter_overrides=[Parameter('repeat', value=0.1),
+                                                 Parameter('timeout', value=0.3)])
     test = Node('test_dog')
     ex = SingleThreadedExecutor()
     ex.add_node(dog)
@@ -190,4 +191,34 @@ def test_governor_node_blocks_forward_near_a_wall(ros):
     spin_for(ex, 0.3, lambda: tick(0.08))
     assert out[-1] == 0.0
     gov.destroy_node()
+    test.destroy_node()
+
+
+def test_signals_leds_tune_and_emergency(ros):
+    from std_msgs.msg import ColorRGBA, String as Str
+    from rasptank_hw.signals_node import SignalsNode
+
+    node = SignalsNode(parameter_overrides=[Parameter('led_count', value=3)])
+    test = Node('test_signals')
+    ex = SingleThreadedExecutor()
+    ex.add_node(node)
+    ex.add_node(test)
+    leds = test.create_publisher(ColorRGBA, 'leds', 10)
+    buzzer = test.create_publisher(Str, 'buzzer', 10)
+    stop = test.create_publisher(Bool, 'emergency_stop', LATCHED)
+    spin_for(ex, 0.2)
+    leds.publish(ColorRGBA(r=0.0, g=1.0, b=0.0, a=0.5))
+    spin_for(ex, 0.2)
+    assert node.hw.colors == [(0, 127, 0)] * 3
+    buzzer.publish(Str(data='A4:0.3'))
+    spin_for(ex, 0.15)
+    assert node.hw.tone == pytest.approx(440.0)
+    spin_for(ex, 0.4)
+    assert node.hw.tone is None                       # the tune ended
+    buzzer.publish(Str(data='C5:2.0'))
+    spin_for(ex, 0.1)
+    stop.publish(Bool(data=True))
+    spin_for(ex, 0.2)
+    assert node.hw.tone is None and node.hw.colors[0] == (255, 0, 0)
+    node.destroy_node()
     test.destroy_node()
