@@ -25,7 +25,7 @@ TURN_SPEED = 0.8               # rad/s
 MANUAL_DISTANCE = 1.0          # m
 MANUAL_TURNS = 1               # full turns (more: the error may pass 180 deg)
 AUTO_DISTANCE = 0.30           # m towards the marker and back
-AUTO_SWING = 25.0              # deg, keeps the marker in view
+AUTO_SWING = 20.0              # deg, keeps the marker in view (half FOV ~31 deg)
 
 
 @dataclass
@@ -34,7 +34,7 @@ class Result:
     report: str
 
 
-def center_on_marker(session, tolerance=3.0, tries=4):
+def center_on_marker(session, tolerance=2.0, tries=4):
     """Turn until the marker is straight ahead (automatic mode, between tests)."""
     for _ in range(tries):
         m = session.marker()
@@ -107,35 +107,44 @@ def _bearing(m):
 
 def rotation_auto(session):
     """Small swings that keep the marker in view, then a full turn."""
-    center_on_marker(session)
     cal = session.params()
     commanded = measured = 0.0
-    for swing in (AUTO_SWING, -2 * AUTO_SWING, AUTO_SWING):
-        before = session.marker()
-        _, angle = session.move(0.0, math.copysign(TURN_SPEED / 2, swing),
-                                math.radians(abs(swing)) / (TURN_SPEED / 2))
+    for swing in (AUTO_SWING, -AUTO_SWING, -AUTO_SWING, AUTO_SWING):
+        before = center_on_marker(session) if swing > 0 else session.marker()
+        speed = math.copysign(TURN_SPEED / 2, swing)
+        _, angle = session.move(0.0, speed, math.radians(abs(swing)) / abs(speed))
         after = session.marker()
         if before is None or after is None:
-            raise CalibrationError('he perdido el marcador al girar: acércalo al centro')
+            # turned too much: undo it and skip this swing
+            session.move(0.0, -speed, math.radians(abs(swing)) / abs(speed))
+            continue
         commanded += abs(angle)
         measured += abs(calc.turned_from_bearings(angle, _bearing(before), _bearing(after)))
+    if commanded == 0.0:
+        raise CalibrationError('he perdido el marcador en todas las oscilaciones')
     new = calc.rotation(commanded, measured, cal)
     session.apply(new)
     report = (f'oscilaciones: giró {measured:.1f}° de {commanded:.1f}°; '
               f'track_separation {cal.track_separation:.4f} -> {new.track_separation:.4f}')
-    # a full turn with the provisional value, measured precisely by the bearing
-    before = session.marker()
-    _, angle = session.move(0.0, TURN_SPEED, 2 * math.pi / TURN_SPEED)
-    after = session.marker()
-    if before is not None and after is not None:
+    # full turns (left and right) with the provisional value, measured
+    # precisely by the bearing, at the speed the robot turns at normally
+    turns = []
+    for direction in (1.0, -1.0):
+        before = center_on_marker(session)
+        _, angle = session.move(0.0, direction * TURN_SPEED, 2 * math.pi / TURN_SPEED)
+        after = session.marker()
+        if before is None or after is None:
+            report += '\nvuelta completa: no veo el marcador al acabar'
+            continue
         real = calc.turned_from_bearings(angle, _bearing(before), _bearing(after))
-        final = calc.rotation(angle, real, new)
-        session.apply(final)
-        report += (f'\nvuelta completa: giró {real:.1f}° de {angle:.0f}°; '
-                   f'track_separation -> {final.track_separation:.4f}')
-        new = final
-    else:
-        report += '\nvuelta completa: no veo el marcador al acabar (se queda la estimación anterior)'
+        session.log(f'vuelta {angle:+.0f}°: marcador {_bearing(before):+.1f}° -> '
+                    f'{_bearing(after):+.1f}°, giro real {real:+.1f}°')
+        turns.append(calc.rotation(angle, real, new))
+        report += f'\nvuelta completa: giró {abs(real):.1f}° de {abs(angle):.0f}°'
+    if turns:
+        new = calc.average(turns)
+        session.apply(new)
+        report += f'\ntrack_separation -> {new.track_separation:.4f}'
     return Result(new, report)
 
 
@@ -161,10 +170,14 @@ def _straight_report(cal, new, commanded, measured, lateral):
 
 
 def straight_auto(session):
-    """Towards the marker and back, measuring both legs with the camera."""
+    """Towards the marker and back, measuring both legs with the camera.
+
+    Both legs are computed from the same starting calibration and averaged:
+    each marker measurement is only good to ~2 % of its distance.
+    """
     center_on_marker(session)
     cal = session.params()
-    reports = []
+    results, reports = [], []
     for direction in (1.0, -1.0):
         before = session.marker()
         commanded, _ = session.move(direction * STRAIGHT_SPEED, 0.0,
@@ -176,11 +189,13 @@ def straight_auto(session):
         dx, dy = calc.straight_from_marker(before[:2], after[:2])
         # the same imbalance shifts the robot to the same side forwards and
         # backwards (left track slower: always to the left)
-        new = calc.straight(abs(commanded), abs(dx), dy, cal)
-        reports.append(_straight_report(cal, new, abs(commanded), abs(dx), dy))
-        session.apply(new)
-        cal = new
-    return Result(cal, '\n'.join(reports))
+        results.append(calc.straight(abs(commanded), abs(dx), dy, cal))
+        reports.append(_straight_report(cal, results[-1], abs(commanded), abs(dx), dy))
+    new = calc.average(results)
+    session.apply(new)
+    reports.append(f'media: max_track_speed {new.max_track_speed:.4f}, ganancias '
+                   f'{new.left_gain:.3f} / {new.right_gain:.3f}')
+    return Result(new, '\n'.join(reports))
 
 
 # ------------------------------------------------------------ battery and checks
@@ -203,9 +218,12 @@ def verify_run_manual(session, side=0.5):
 
 
 def verify_auto(session):
-    """There and back plus a full turn: where does it end, seen from the marker?"""
-    center_on_marker(session)
-    before = session.marker()
+    """There and back plus a full turn: does it end where it started?
+
+    Returns (distance error m, heading error deg, text): measured as the
+    change of the marker's distance and bearing from the start.
+    """
+    before = center_on_marker(session)
     if before is None:
         raise CalibrationError('no veo el marcador')
     session.move(STRAIGHT_SPEED, 0.0, AUTO_DISTANCE / STRAIGHT_SPEED)
@@ -213,9 +231,8 @@ def verify_auto(session):
     session.move(-STRAIGHT_SPEED, 0.0, AUTO_DISTANCE / STRAIGHT_SPEED)
     after = session.marker()
     if after is None:
-        return None, 'al terminar no veo el marcador: el error de giro es grande'
-    # back where it started, the marker would be where it was: how far is it?
-    shift = math.hypot(after[0] - before[0], after[1] - before[1])
-    turn = calc.normalize_deg(_bearing(after) - _bearing(before))
-    return shift, (f'al volver, el marcador está a {shift * 100:.1f} cm y {turn:+.1f}° de donde '
-                   f'estaba (ida {AUTO_DISTANCE * 100:.0f} cm, vuelta completa y regreso)')
+        return None, None, 'al terminar no veo el marcador: el error de giro es grande'
+    distance = math.hypot(*after[:2]) - math.hypot(*before[:2])
+    turn = calc.normalize_deg(_bearing(before) - _bearing(after))
+    return distance, turn, (f'ida {AUTO_DISTANCE * 100:.0f} cm, vuelta completa y regreso: '
+                            f'error de distancia {distance * 100:+.1f} cm, de giro {turn:+.1f}°')

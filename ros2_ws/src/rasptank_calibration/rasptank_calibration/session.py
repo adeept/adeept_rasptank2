@@ -53,6 +53,7 @@ class Session:
         self.base = base_node.strip('/')
         self.lock = threading.Lock()
         self.abort = threading.Event()
+        self.verbose = False
         self.stopped = False
         self.driver = None
         self.voltage = None
@@ -130,6 +131,11 @@ class Session:
                 self.marker_msg = (time.monotonic(), M.t[0], M.t[1],
                                    math.atan2(normal[1], normal[0]))
             return
+
+    def log(self, text):
+        self.node.get_logger().debug(text)
+        if self.verbose:
+            print('    ' + text, flush=True)
 
     @property
     def simulated(self):

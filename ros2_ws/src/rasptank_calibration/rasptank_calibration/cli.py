@@ -124,7 +124,7 @@ class Terminal:
     def verify(self):
         if self.args.auto:
             self.go('COMPROBACIÓN: ida, vuelta completa y regreso.')
-            _, text = proc.verify_auto(self.s)
+            _, _, text = proc.verify_auto(self.s)
             return text
         self.go('COMPROBACIÓN: marca la posición y hará un cuadrado de 50 cm.')
         start = self.truth()
@@ -163,7 +163,7 @@ class Terminal:
             self.say('  ' + proc.battery(s, use_battery).report)
             if self.args.comprobar:
                 self.say('  ' + self.verify())
-        except (Aborted, CalibrationError, KeyboardInterrupt) as e:
+        except (Aborted, CalibrationError, ValueError, KeyboardInterrupt) as e:
             s.stop_robot()
             self.say(f'\nCalibración interrumpida: {e or "Ctrl+C"}. Vuelvo a los valores de antes.')
             s.apply(original)
@@ -198,8 +198,10 @@ def main(argv=None):
     parser.add_argument('--medidas-sim', action='store_true',
                         help='simulación: medidas tomadas de /sim/ground_truth')
     parser.add_argument('--no-guardar', action='store_true')
+    parser.add_argument('--detalle', action='store_true', help='muestra cada medida')
     args, _ = parser.parse_known_args(argv)
     session = Session()
+    session.verbose = args.detalle
     try:
         end = time.monotonic() + 5.0
         while session.driver is None and time.monotonic() < end:

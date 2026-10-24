@@ -24,17 +24,28 @@ trap stop_sim EXIT
 sleep 6
 
 if [[ "$MODE" == "auto" ]]; then
-  ARGS=(--auto); LIMIT=8
+  ARGS=(--auto)
 else
-  ARGS=(--medidas-sim); LIMIT=15
+  ARGS=(--medidas-sim)
 fi
-OUT="$(timeout 600 ros2 run rasptank_calibration calibrar "${ARGS[@]}" --si --no-guardar 2>&1)"
+OUT="$(timeout 600 ros2 run rasptank_calibration calibrar "${ARGS[@]}" --si --no-guardar --detalle 2>&1)"
 echo "$OUT" | grep -E "^  |Antes|Después|Error|interrump"
-ERROR="$(echo "$OUT" | grep -oE "(termina a|está a) [0-9.]+ cm" | grep -oE "[0-9.]+" | tail -1)"
-if [[ -n "$ERROR" ]] && awk -v e="$ERROR" -v l="$LIMIT" 'BEGIN { exit !(e < l) }'; then
-  echo "RESULTADO: calibración $MODE correcta (error final $ERROR cm < $LIMIT cm)"
+if [[ "$MODE" == "auto" ]]; then
+  # error de distancia (cm) y de giro (grados) de ida + vuelta completa + regreso
+  LINE="$(echo "$OUT" | grep -E "error de distancia" | tail -1)"
+  DIST="$(echo "$LINE" | sed -E 's/.*distancia ([-+0-9.]+) cm.*/\1/')"
+  TURN="$(echo "$LINE" | sed -E 's/.*giro ([-+0-9.]+)°.*/\1/')"
+  OK=$(awk -v d="$DIST" -v t="$TURN" 'BEGIN { print (d != "" && d*d < 16 && t*t < 25) ? 1 : 0 }')
+  SUMMARY="distancia ${DIST:-?} cm (límite 4), giro ${TURN:-?}° (límite 5)"
+else
+  ERROR="$(echo "$OUT" | grep -oE "termina a [0-9.]+ cm" | grep -oE "[0-9.]+" | tail -1)"
+  OK=$(awk -v e="$ERROR" 'BEGIN { print (e != "" && e < 15) ? 1 : 0 }')
+  SUMMARY="cuadrado de 50 cm cierra a ${ERROR:-?} cm (límite 15)"
+fi
+if [[ "$OK" == 1 ]]; then
+  echo "RESULTADO: calibración $MODE correcta: $SUMMARY"
   exit 0
 fi
-echo "RESULTADO: calibración $MODE FALLIDA (error final ${ERROR:-desconocido} cm, límite $LIMIT cm)"
+echo "RESULTADO: calibración $MODE FALLIDA: $SUMMARY"
 echo "--- registro de la simulación: $LOG"
 exit 1

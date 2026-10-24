@@ -88,7 +88,8 @@ def rotation(commanded_deg, measured_deg, cal):
     than it believes, it behaves as if the tracks were further apart.
     """
     if commanded_deg == 0 or measured_deg == 0 or (commanded_deg > 0) != (measured_deg > 0):
-        raise ValueError('el giro medido tiene que ir en el mismo sentido que el pedido')
+        raise ValueError(f'el giro medido ({measured_deg:.1f}°) tiene que ir en el mismo sentido '
+                         f'que el pedido ({commanded_deg:.1f}°)')
     separation = cal.track_separation * commanded_deg / measured_deg
     return cal.copy(track_separation=round(clamp(separation, 0.05, 0.5), 4))
 
@@ -97,6 +98,13 @@ def battery(voltage, cal):
     """Remember the voltage of the calibration: base_node then scales the
     throttle by reference / current voltage (a discharged battery is slower)."""
     return cal.copy(battery_reference=round(voltage, 2) if voltage and voltage > 0 else 0.0)
+
+
+def average(calibrations):
+    """Field by field mean of several results of the same test."""
+    n = len(calibrations)
+    return BaseCalibration(**{k: round(sum(getattr(c, k) for c in calibrations) / n, 4)
+                              for k in PARAMS})
 
 
 # ------------------------------------------------------------ automatic mode

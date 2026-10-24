@@ -73,6 +73,9 @@ class FakeSession:
             return None
         return x, y, normalize_angle(math.pi - p.yaw)
 
+    def log(self, text):
+        pass
+
     def latest_marker(self, max_age=0.5):
         return self.marker()
 
@@ -93,8 +96,8 @@ def test_auto_finds_the_hidden_errors():
     assert cal.left_gain / cal.right_gain == pytest.approx(1 / 0.92, rel=0.02)
     s2 = FakeSession()
     s2.cal = cal
-    error, report = proc.verify_auto(s2)
-    assert error < 0.02, report
+    distance, turn, report = proc.verify_auto(s2)
+    assert abs(distance) < 0.02 and abs(turn) < 3.0, report
 
 
 def test_manual_with_exact_measurements():
