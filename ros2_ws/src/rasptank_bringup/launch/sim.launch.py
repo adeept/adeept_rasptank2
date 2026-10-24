@@ -22,6 +22,9 @@ def generate_launch_description():
     share = FindPackageShare('rasptank_bringup')
     config = lambda name: PathJoinSubstitution([share, 'config', name])  # noqa: E731
     arg = LaunchConfiguration
+    # config/sort.yaml with sort:=true, the empty no_sort.yaml otherwise
+    sort_config = PathJoinSubstitution([share, 'config', PythonExpression(
+        ["'sort.yaml' if '", arg('sort'), "' == 'true' else 'no_sort.yaml'"])])
     cmd_topic = PythonExpression(["'cmd_vel_safe' if '", arg('governor'), "' == 'true' else 'cmd_vel'"])
     world = PathJoinSubstitution([share, 'worlds', PythonExpression(["'", arg('world'), "' + '.yaml'"])])
     return LaunchDescription([
@@ -35,6 +38,8 @@ def generate_launch_description():
                               description='nodo de la misión coger y llevar el cubo'),
         DeclareLaunchArgument('autostart', default_value='false',
                               description='arrancar la misión o la ruta sin llamar al servicio'),
+        DeclareLaunchArgument('sort', default_value='false',
+                              description='clasificar varios cubos (config/sort.yaml)'),
         DeclareLaunchArgument('cube_detector', default_value='color',
                               description='color o yolo (con yolo_model)'),
         DeclareLaunchArgument('yolo_model', default_value='',
@@ -59,11 +64,11 @@ def generate_launch_description():
         Node(package='rasptank_sim', executable='world_node', name='world_node',
              parameters=[{'world_file': world}]),
         Node(package='rasptank_perception', executable='detector_node', name='detector_node',
-             parameters=[config('perception.yaml'), {'cube_detector': arg('cube_detector'),
-                                                     'yolo_model': arg('yolo_model')}],
+             parameters=[config('perception.yaml'), sort_config,
+                         {'cube_detector': arg('cube_detector'), 'yolo_model': arg('yolo_model')}],
              condition=IfCondition(arg('detector'))),
         Node(package='rasptank_mission', executable='mission_node', name='mission_node',
-             parameters=[config('mission.yaml'), {'autostart': arg('autostart')}],
+             parameters=[config('mission.yaml'), sort_config, {'autostart': arg('autostart')}],
              condition=IfCondition(arg('mission'))),
         Node(package='rasptank_mission', executable='route_node', name='route_node',
              parameters=[config('mission.yaml'), {'autostart': arg('autostart')}],

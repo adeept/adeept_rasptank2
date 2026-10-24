@@ -85,10 +85,9 @@ def _box_faces(cx, cy, yaw, sx, sy, z0, z1, color):
 class Renderer:
     def __init__(self, world, marker_dictionary='DICT_4X4_50'):
         self.world = world
-        self.marker = None
-        if world.goal is not None:
-            img = aruco_marker_image(aruco_dictionary(marker_dictionary), world.goal.marker_id, 120)
-            self.marker = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        dictionary = aruco_dictionary(marker_dictionary)
+        self.markers = {g.marker_id: cv2.cvtColor(aruco_marker_image(dictionary, g.marker_id, 120),
+                                                  cv2.COLOR_GRAY2BGR) for g in world.goals}
 
     # ------------------------------------------------------------ scene
 
@@ -105,9 +104,9 @@ class Renderer:
             faces.append(Face([(a[0] - nx - ex, a[1] - ny - ey, 0), (b[0] - nx + ex, b[1] - ny + ey, 0),
                                (b[0] + nx + ex, b[1] + ny + ey, 0), (a[0] + nx - ex, a[1] + ny - ey, 0)],
                               LINE, two_sided=True))
-        if w.goal is not None:
-            gx, gy = w.goal.area
-            r = w.goal.area_radius
+        for g in w.goals:
+            gx, gy = g.area
+            r = g.area_radius
             faces.append(Face([(gx + r * math.cos(t), gy + r * math.sin(t), 0)
                                for t in np.linspace(0, 2 * math.pi, 24, endpoint=False)],
                               GOAL_AREA, two_sided=True))
@@ -124,15 +123,13 @@ class Renderer:
         faces = []
         for o in w.obstacles:
             faces += _box_faces(o.x, o.y, o.yaw, o.size[0], o.size[1], 0.0, o.height, o.color)
-        if w.cube is not None:
-            c = w.cube
+        for c in w.cubes:
             z0 = c.position[2] - c.size / 2
             faces += _box_faces(c.position[0], c.position[1], c.yaw, c.size, c.size,
                                 z0, z0 + c.size, c.color)
             faces.append(Face(_box_faces(c.position[0], c.position[1], c.yaw, c.size, c.size,
                                          z0, z0, c.color)[4].points[::-1], c.color, (0, 0, -1.0)))
-        g = w.goal
-        if g is not None:
+        for g in w.goals:
             (ax, ay), (bx, by) = g.segment()
             normal = (math.cos(g.yaw), math.sin(g.yaw), 0.0)
             # front (with the marker) and back of the board
@@ -142,7 +139,7 @@ class Renderer:
             ux, uy = (bx - ax) / g.board[0], (by - ay) / g.board[0]   # along the board
             zc = g.marker_center_z
             # marker corners TL, TR, BR, BL as seen from the front: +u is right
-            front.texture = (self.marker, np.array([
+            front.texture = (self.markers[g.marker_id], np.array([
                 (g.x - ux * h, g.y - uy * h, zc + h), (g.x + ux * h, g.y + uy * h, zc + h),
                 (g.x + ux * h, g.y + uy * h, zc - h), (g.x - ux * h, g.y - uy * h, zc - h)]))
             faces.append(front)

@@ -120,6 +120,8 @@ cubo = robot.ver('cubo')            # {'distancia', 'angulo', 'adelante', ...} o
 robot.brazo('pre_coger')            # posturas de config/robot.yaml
 robot.cerrar_pinza()
 robot.camara(20)                    # inclinación de la cámara, grados
+robot.luces(0, 255, 0)              # LEDs (0-255)
+robot.melodia('C5:0.2 E5:0.2 G5:0.4')   # zumbador: nota:segundos, "-" = silencio
 robot.cerrar()
 ```
 
@@ -134,6 +136,7 @@ Ejemplos, de menos a más (con la simulación abierta):
 | `ej05_ruta` | `vacio` | puntos y ángulos |
 | `ej06_brazo` | cualquiera | brazo, pinza, cámara |
 | `ej07_coger_cubo` | `mision` | visión + control proporcional + brazo |
+| `ej08_luces_sonido` | cualquiera | LEDs y zumbador como semáforo de distancia |
 | `plantilla_nodo` | cualquiera | un nodo de ROS 2 de verdad |
 
 Los ejemplos están en `ros2_ws/src/rasptank_alumno/rasptank_alumno/ejemplos/`.
@@ -195,6 +198,22 @@ parámetros están en `config/mission.yaml`.
 
 Prueba automática, sin pantalla: `./scripts/prueba_mision_sim.sh` (termina
 en unos 45 s con el cubo dentro de la meta).
+
+### Variante: clasificar
+
+Varios cubos de dos colores y dos metas: los rojos al marcador ArUco 0 y los
+azules al 1 (`config/sort.yaml`). El robot elige el cubo más cercano, lo sigue
+hasta cogerlo sin confundirlo con otro, lo lleva a la meta de su clase y
+repite; ignora los que ya están en una meta.
+
+```bash
+./scripts/sim.sh clasificar sort:=true mission:=true autostart:=true
+./scripts/prueba_mision_sim.sh clasificar 600 sort:=true      # prueba automática
+```
+
+Con el robot real: `pc.launch.py sort:=true mission:=true`, dos marcadores
+impresos (`generar_marcador.py --id 0` y `--id 1`) y cubos de los colores de
+`sort.yaml` (o las clases de un modelo YOLO propio en `sort_classes`).
 
 ## 7. Visión y entrenamiento de un modelo
 
@@ -343,6 +362,9 @@ parada de emergencia, mover, calibración y simulación. Ver
 | `/ultrasonic` | `sensor_msgs/Range` | sensores / simulador |
 | `/line_sensors` | `rasptank_interfaces/LineSensors` | sensores / simulador |
 | `/battery` | `sensor_msgs/BatteryState` | sensores / simulador |
+| `/leds`, `/leds/state` | `std_msgs/ColorRGBA` | color de los LEDs → `signals_node` |
+| `/buzzer` | `std_msgs/String` | melodía → `signals_node` |
+| `/sim/sorted` | `std_msgs/String` | simulador: "bien/total" cubos clasificados |
 | `/camera/image/compressed`, `/camera/camera_info` | JPEG + calibración | cámara / simulador |
 | `/detections` | `vision_msgs/Detection2DArray` (`cubo`, `meta`) | detector |
 | `/detections/image` | `sensor_msgs/Image` | detector (para RViz) |

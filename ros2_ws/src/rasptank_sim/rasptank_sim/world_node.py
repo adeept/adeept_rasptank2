@@ -17,7 +17,8 @@ from the true pose and the URDF frames (TF from base_footprint):
   /battery                  sensor_msgs/BatteryState (constant)
   /sim/markers              visualization_msgs/MarkerArray (RViz)
   /sim/cube_pose            geometry_msgs/PoseStamped
-  /sim/cube_in_goal         std_msgs/Bool
+  /sim/cube_in_goal         std_msgs/Bool (the first cube, worlds with one)
+  /sim/sorted               std_msgs/String "right/total" cubes on the goal of their class
   /sim/collision            std_msgs/Bool
   /sim/ground_truth         nav_msgs/Odometry (where the robot really is)
 
@@ -37,7 +38,7 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from rclpy.time import Time
 from sensor_msgs.msg import BatteryState, CameraInfo, CompressedImage, JointState, Range
-from std_msgs.msg import Bool, ColorRGBA, Float32MultiArray
+from std_msgs.msg import Bool, ColorRGBA, Float32MultiArray, String
 from tf2_ros import Buffer, TransformException, TransformListener
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -94,6 +95,7 @@ class WorldNode(Node):
         self.marker_pub = self.create_publisher(MarkerArray, 'sim/markers', 2)
         self.cube_pub = self.create_publisher(PoseStamped, 'sim/cube_pose', 10)
         self.in_goal_pub = self.create_publisher(Bool, 'sim/cube_in_goal', 10)
+        self.sorted_pub = self.create_publisher(String, 'sim/sorted', 10)
         self.collision_pub = self.create_publisher(Bool, 'sim/collision', 10)
         self.truth_pub = self.create_publisher(Odometry, 'sim/ground_truth', 10)
         self.create_subscription(JointState, 'joint_states', self.on_joints, 10)
@@ -160,16 +162,21 @@ class WorldNode(Node):
             if T is not None and self.world.try_grasp(T.t, self.grasp_radius):
                 self.get_logger().info('cube grasped')
         elif previous < self.gripper_open <= angle:
+            cube = self.world.held
             if self.world.release():
-                self.get_logger().info('cube released'
-                                       + (' inside the goal' if self.world.cube_in_goal() else ''))
+                goal = self.world.goal_of(cube)
+                where = f' on goal {goal.marker_id}' if goal is not None else ''
+                self.get_logger().info(f'{cube.name} released{where}')
 
     def update_cube(self):
-        cube = self.world.cube
-        if cube is not None and cube.held:
+        if self.world.held is not None:
             T = self.lookup('gripper_center_link')
             if T is not None:
                 self.world.carry(T.t)
+        if self.world.cubes:
+            right, total = self.world.sorted_count()
+            self.sorted_pub.publish(String(data=f'{right}/{total}'))
+        cube = self.world.cube
         if cube is not None:
             msg = PoseStamped()
             msg.header.stamp = self.stamp()
@@ -287,24 +294,25 @@ class WorldNode(Node):
                 pt = m.pose.position.__class__(x=float(x), y=float(y), z=0.001)
                 m.points.append(pt)
             out.markers.append(m)
-        if w.goal is not None:
-            g = w.goal
-            out.markers.append(self._box('goal', 0, g.x, g.y, g.board[1] / 2, g.yaw,
+        classes = {v: k for k, v in w.sorting.items()}
+        for i, g in enumerate(w.goals):
+            out.markers.append(self._box('goal', 3 * i, g.x, g.y, g.board[1] / 2, g.yaw,
                                          (0.01, g.board[0], g.board[1]), (0.95, 0.95, 0.95)))
             ax, ay = g.area
-            out.markers.append(self._box('goal', 1, ax, ay, 0.001, 0.0,
+            out.markers.append(self._box('goal', 3 * i + 1, ax, ay, 0.001, 0.0,
                                          (2 * g.area_radius, 2 * g.area_radius, 0.002),
                                          (0.3, 0.8, 0.3, 0.5)))
             out.markers[-1].type = Marker.CYLINDER
-            label = self._marker('goal', 2, Marker.TEXT_VIEW_FACING, (1.0, 1.0, 1.0), (0, 0, 0.05))
+            label = self._marker('goal', 3 * i + 2, Marker.TEXT_VIEW_FACING, (1.0, 1.0, 1.0),
+                                 (0, 0, 0.05))
             label.pose.position.x, label.pose.position.y = g.x, g.y
             label.pose.position.z = g.board[1] + 0.05
-            label.text = f'META (ArUco {g.marker_id})'
+            label.text = f'META {g.marker_id}' + (f' ({classes[g.marker_id]})'
+                                                  if g.marker_id in classes else '')
             out.markers.append(label)
-        if w.cube is not None:
-            c = w.cube
+        for i, c in enumerate(w.cubes):
             col = (c.color[2] / 255, c.color[1] / 255, c.color[0] / 255)
-            out.markers.append(self._box('cube', 0, *c.position, c.yaw, (c.size,) * 3, col))
+            out.markers.append(self._box('cube', i, *c.position, c.yaw, (c.size,) * 3, col))
         # where the robot really is (the RobotModel shows where it believes it is)
         p = self.motion.pose
         out.markers.append(self._box('robot_real', 0, p.x, p.y, 0.03, p.yaw, (0.22, 0.15, 0.06),

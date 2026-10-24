@@ -1,0 +1,5 @@
+# Sin clasificar: se usan los valores de perception.yaml y mission.yaml.
+# (launch necesita un fichero; este solo afecta a un nodo que no existe)
+no_sort_placeholder:
+  ros__parameters:
+    unused: 0

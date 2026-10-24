@@ -3,6 +3,7 @@
 # misión y comprueba que el cubo acaba en la meta.
 #   ./scripts/prueba_mision_sim.sh [mundo] [segundos] [argumentos de launch...]
 #   ./scripts/prueba_mision_sim.sh mision 180 cube_detector:=yolo yolo_model:=$HOME/cubo_meta.onnx
+#   ./scripts/prueba_mision_sim.sh clasificar 600 sort:=true      # clasificar
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -27,7 +28,9 @@ stop_sim() {
 }
 trap stop_sim EXIT
 
-python3 "$ROOT/scripts/comprobar_mision.py" "$TIMEOUT"
+CHECK=()
+[[ " $* " == *" sort:=true "* ]] && CHECK=(--clasificar)
+python3 "$ROOT/scripts/comprobar_mision.py" "$TIMEOUT" "${CHECK[@]}"
 RESULT=$?
 if [[ $RESULT -ne 0 ]]; then
   echo "--- registro de la simulación: $LOG"

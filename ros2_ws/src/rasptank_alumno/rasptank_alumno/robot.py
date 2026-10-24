@@ -132,7 +132,10 @@ class Robot:
                 k = (ALTURA_CUBO - origen[2]) / rayo[2]
                 punto = [origen[i] + k * rayo[i] for i in range(3)]
             with self._lock:
-                self._detections[cls] = (now, d, punto[0], punto[1])
+                # several of a class in one image: keep the nearest
+                old = self._detections.get(cls)
+                if old is None or old[0] != now or punto[0] < old[2]:
+                    self._detections[cls] = (now, d, punto[0], punto[1])
 
     def _send_cmd(self):
         v, w = self._cmd

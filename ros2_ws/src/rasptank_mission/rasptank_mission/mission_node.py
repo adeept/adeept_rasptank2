@@ -20,6 +20,11 @@ The detections are turned into positions in base_footprint with TF. The
 cube's distance from its apparent size is rough, so its position is the
 point where the ray through the box centre meets the plane at the
 height of the cube centre (`cube_height`).
+
+`mode: sort` sorts several cubes: each class of `sort_classes` goes to the
+ArUco marker of the same position in `sort_goals` (rasptank_core.sorting
+chooses the cube and the goal). The pick-and-place cycle repeats until
+`max_objects` are delivered (0: until no cube is left to find).
 """
 import dataclasses
 
@@ -38,7 +43,9 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 from rasptank_core.geometry import Transform, quat_to_yaw, ray_to_plane_z
 from rasptank_core.kinematics import Pose2D
-from rasptank_core.mission import ESPERA, FALLO, FIN, Mission, MissionInput, MissionParams, Target
+from rasptank_core.mission import (APROXIMAR_CUBO, BUSCAR_CUBO, ESPERA, FALLO, FIN, Mission,
+                                   MissionInput, MissionParams, Target)
+from rasptank_core.sorting import Sorter
 from rasptank_interfaces.msg import ArmState
 
 IDLE = (ESPERA, FIN, FALLO)
@@ -55,6 +62,16 @@ class MissionNode(Node):
         self.base_frame = self.declare_parameter('base_frame', 'base_footprint').value
         self.max_range = self.declare_parameter('max_target_range', 2.5).value
         rate = self.declare_parameter('rate', 20.0).value
+        self.sort = self.declare_parameter('mode', 'single').value == 'sort'
+        classes = list(self.declare_parameter('sort_classes', ['cubo_rojo', 'cubo_azul']).value)
+        goals = [int(g) for g in self.declare_parameter('sort_goals', [0, 1]).value]
+        if self.sort and len(classes) != len(goals):
+            raise ValueError('sort_classes and sort_goals need the same length')
+        self.sort_goals = dict(zip(classes, goals))
+        self.max_objects = self.declare_parameter('max_objects', 0).value
+        self.sorter = Sorter(self.sort_goals)
+        self.final = ''
+        self.previous_state = None
 
         self.pose = Pose2D()
         self.cube = None
@@ -121,25 +138,39 @@ class MissionNode(Node):
         t, q = tf.transform.translation, tf.transform.rotation
         T = Transform.from_quat([t.x, t.y, t.z], [q.x, q.y, q.z, q.w])
         now = self.now()   # reception time: the Pi and PC clocks may differ
+        cube_classes = self.sort_goals if self.sort else ('cubo',)
+        seen = []          # (class, x, y) in the robot frame
         for d in msg.detections:
             if not d.results:
                 continue
             cls = d.results[0].hypothesis.class_id
             p = d.results[0].pose.pose.position
-            if cls == 'cubo':
+            if cls in cube_classes:
                 hit = ray_to_plane_z(T.t, T.rotate([p.x, p.y, p.z]), self.cube_height)
                 if hit is not None and 0.0 < hit[0] < self.max_range:
-                    self.cube = Target(float(hit[0]), float(hit[1]), now)
-            elif cls == 'meta':
+                    seen.append((cls, float(hit[0]), float(hit[1])))
+            elif cls.startswith('meta'):
                 x, y, _ = T.apply([p.x, p.y, p.z])
                 if 0.0 < x < self.max_range:
-                    self.goal = Target(float(x), float(y), now)
+                    seen.append((cls, float(x), float(y)))
+        if self.sort:
+            self.sorter.observe(seen, self.pose, now)
+            return
+        cubes = [s for s in seen if s[0] == 'cubo']
+        if cubes:
+            _, x, y = min(cubes, key=lambda c: c[1] ** 2 + c[2] ** 2)     # the nearest
+            self.cube = Target(x, y, now)
+        goals = [s for s in seen if s[0] == 'meta']
+        if goals:
+            self.goal = Target(goals[0][1], goals[0][2], now)
 
     def on_start(self, request, response):
         if self.mission.state not in IDLE:
             response.success, response.message = False, f'already running ({self.mission.state})'
             return response
         self.cube = self.goal = None
+        self.sorter = Sorter(self.sort_goals)
+        self.final = ''
         self.mission.start()
         response.success, response.message = True, 'mission started'
         return response
@@ -153,9 +184,22 @@ class MissionNode(Node):
     # ------------------------------------------------------------ loop
 
     def loop(self):
-        inp = MissionInput(self.now(), self.pose, self.cube, self.goal, self.arm.pose,
-                           self.arm.moving)
+        now = self.now()
+        cube, goal = self.cube, self.goal
+        if self.sort:
+            state = self.mission.state
+            if state == APROXIMAR_CUBO and self.previous_state != APROXIMAR_CUBO:
+                self.sorter.lock()
+                self.get_logger().info(f'going for a {self.sorter.locked_class}')
+            elif state == BUSCAR_CUBO:
+                self.sorter.unlock()
+            self.previous_state = state
+            cube = self.sorter.cube_target(self.pose, now)
+            goal = self.sorter.goal_target(self.pose, now)
+        inp = MissionInput(now, self.pose, cube, goal, self.arm.pose, self.arm.moving)
         out = self.mission.step(inp)
+        if self.sort:
+            out = self.next_object(out)
         running = out.state not in IDLE
         if running:
             cmd = Twist()
@@ -180,8 +224,31 @@ class MissionNode(Node):
             self.publish_state()
         self.publish_markers(out)
 
+    def next_object(self, out):
+        """Sorting: after each delivery start again, until there is nothing left."""
+        done = len(self.sorter.delivered)
+        if out.state == FIN and not self.final:
+            self.sorter.deliver()
+            done += 1
+            self.get_logger().info(f'{self.sorter.delivered[-1]} delivered ({done})')
+            if self.max_objects and done >= self.max_objects:
+                self.final = f'FIN: {done} cubos clasificados'
+                self.publish_state()
+            else:
+                self.mission.start()
+        elif out.state == FALLO and done and 'cubo' in self.mission.info and not self.final:
+            self.final = f'FIN: {done} cubos clasificados (no quedan más)'
+            self.publish_state()
+        out.state = self.mission.state
+        return out
+
     def publish_state(self):
+        if self.final:
+            self.state_pub.publish(String(data=self.final))
+            return
         text = self.mission.state + (f': {self.mission.info}' if self.mission.info else '')
+        if self.sort:
+            text += f' [{len(self.sorter.delivered)} clasificados]'
         self.state_pub.publish(String(data=text))
 
     def publish_markers(self, out):

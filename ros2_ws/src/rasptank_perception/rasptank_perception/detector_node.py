@@ -7,14 +7,18 @@ Publishes:
   /detections                vision_msgs/Detection2DArray
   /detections/image          sensor_msgs/Image (bgr8, boxes drawn) for RViz
 
-Each detection has `class_id` "cubo" or "meta", the box in pixels and the
-3D position in the camera optical frame (header.frame_id):
+Each detection has a `class_id`, the box in pixels and the 3D position in
+the camera optical frame (header.frame_id). Classes: "cubo" (or the ones of
+`color_classes` / the YOLO model), "meta" for the marker `goal_marker_id`,
+and "meta_<id>" for every ArUco marker seen (sorting uses several goals):
   cubo  from the box size and `cube_size` (approximate distance; the
         mission corrects it with the floor plane)
   meta  from the ArUco marker corners with solvePnP (precise)
 
 `cube_detector`:
-  color  red blob in HSV (`hsv_ranges`): needs no training
+  color  coloured blobs in HSV: `color_classes` (default [cubo]), each with
+         its ranges in `hsv_<class>` (`hsv_ranges` for "cubo"); up to
+         `max_per_class` blobs per class, largest first
   yolo   ONNX model trained with tools/yolo (classes `yolo_classes`)
 The goal is always the ArUco marker `goal_marker_id`.
 
@@ -49,9 +53,13 @@ class DetectorNode(Node):
         super().__init__('detector_node')
         p = self.declare_parameter
         self.cube_detector = p('cube_detector', 'color').value
-        ranges = list(p('hsv_ranges', [0, 120, 70, 10, 255, 255, 170, 120, 70, 180, 255, 255]).value)
-        self.hsv_ranges = [(tuple(ranges[i:i + 3]), tuple(ranges[i + 3:i + 6]))
-                           for i in range(0, len(ranges) - 5, 6)]
+        red = [0, 120, 70, 10, 255, 255, 170, 120, 70, 180, 255, 255]
+        self.color_classes = {}
+        for name in p('color_classes', ['cubo']).value:
+            flat = list(p('hsv_ranges' if name == 'cubo' else f'hsv_{name}', red).value)
+            self.color_classes[name] = [(tuple(flat[i:i + 3]), tuple(flat[i + 3:i + 6]))
+                                        for i in range(0, len(flat) - 5, 6)]
+        self.max_per_class = p('max_per_class', 3).value
         self.min_area = p('min_area', 80).value
         self.cube_size = p('cube_size', 0.04).value
         self.goal_id = p('goal_marker_id', 0).value
@@ -115,36 +123,37 @@ class DetectorNode(Node):
         boxes = []     # for the debug image: (label, x, y, w, h, colour)
 
         if self.yolo is None:
-            found = detect_color(img, self.hsv_ranges, self.min_area)
-            if found:
-                x, y, w, h, area = found[0]
-                fill = area / float(w * h)
-                pos = bbox_to_point(x + w / 2, y + h / 2, w, self.K, self.cube_size)
-                out.detections.append(self.detection(msg.header, 'cubo', min(1.0, fill), x, y, w,
-                                                     h, pos))
-                boxes.append(('cubo', x, y, w, h, (0, 0, 255)))
+            for name, ranges in self.color_classes.items():
+                for x, y, w, h, area in detect_color(img, ranges, self.min_area)[:self.max_per_class]:
+                    fill = area / float(w * h)
+                    pos = bbox_to_point(x + w / 2, y + h / 2, w, self.K, self.cube_size)
+                    out.detections.append(self.detection(msg.header, name, min(1.0, fill), x, y,
+                                                         w, h, pos))
+                    boxes.append((name, x, y, w, h, (0, 0, 255)))
         else:
-            for cls, score, x, y, w, h in self.yolo.detect(img):
+            count = {}
+            for cls, score, x, y, w, h in self.yolo.detect(img):    # best first
                 name = self.yolo_classes[cls] if cls < len(self.yolo_classes) else str(cls)
-                if name != 'cubo':
-                    continue
+                if name.startswith('meta') or count.get(name, 0) >= self.max_per_class:
+                    continue                  # the goals come from the ArUco markers
+                count[name] = count.get(name, 0) + 1
                 pos = bbox_to_point(x + w / 2, y + h / 2, w, self.K, self.cube_size)
-                out.detections.append(self.detection(msg.header, 'cubo', score, x, y, w, h, pos))
-                boxes.append((f'cubo {score:.2f}', x, y, w, h, (0, 0, 255)))
-                break    # the best one (NMS output is sorted by score)
+                out.detections.append(self.detection(msg.header, name, score, x, y, w, h, pos))
+                boxes.append((f'{name} {score:.2f}', x, y, w, h, (0, 0, 255)))
 
         for marker_id, corners in self.aruco.detect(img):
-            if marker_id != self.goal_id:
-                continue
             pose = marker_pose(corners, self.marker_size, self.K, self.dist)
             if pose is None:
                 continue
             rvec, tvec = pose
             x, y = corners.min(axis=0)
             w, h = corners.max(axis=0) - corners.min(axis=0)
-            out.detections.append(self.detection(msg.header, 'meta', 1.0, x, y, w, h, tvec,
-                                                 rvec_to_quat(rvec)))
-            boxes.append((f'meta {tvec[2]:.2f} m', int(x), int(y), int(w), int(h), (0, 200, 0)))
+            names = [f'meta_{marker_id}'] + (['meta'] if marker_id == self.goal_id else [])
+            for name in names:
+                out.detections.append(self.detection(msg.header, name, 1.0, x, y, w, h, tvec,
+                                                     rvec_to_quat(rvec)))
+            boxes.append((f'meta {marker_id} {tvec[2]:.2f} m', int(x), int(y), int(w), int(h),
+                          (0, 200, 0)))
 
         self.det_pub.publish(out)
         self._times.append(time.monotonic() - t0)

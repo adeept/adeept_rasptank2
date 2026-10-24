@@ -1,0 +1,16 @@
+# Misión de clasificar (sim.launch.py sort:=true, pc.launch.py sort:=true):
+# cada clase de cubo va a la meta (marcador ArUco) de la misma posición.
+detector_node:
+  ros__parameters:
+    color_classes: [cubo_rojo, cubo_azul]
+    #                 H    S    V     H    S    V
+    hsv_cubo_rojo: [0, 120, 70,   10, 255, 255,
+                    170, 120, 70, 180, 255, 255]
+    hsv_cubo_azul: [95, 120, 60,  125, 255, 255]
+
+mission_node:
+  ros__parameters:
+    mode: sort
+    sort_classes: [cubo_rojo, cubo_azul]
+    sort_goals: [0, 1]         # ids de los marcadores ArUco
+    max_objects: 0             # 0 = hasta que no encuentre más cubos
