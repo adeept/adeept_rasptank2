@@ -41,6 +41,16 @@ Sirve para empezar y para comparar: un modelo entrenado solo con imágenes
 sintéticas funciona mal con la cámara real (*domain gap*). Mezclarlas con
 fotos reales sí ayuda.
 
+## 2b. Juntar los datasets
+
+```bash
+python3 tools/yolo/preparar_dataset.py --salida ~/dataset \
+    --fuente ~/dataset_real_etiquetado --fuente ~/dataset_sim:0.5
+```
+
+La primera fuente (las fotos reales) da también la validación; detrás de `:`
+va la fracción de cada fuente que se usa. Escribe el `data.yaml` para entrenar.
+
 ## 3. Entrenar
 
 En un PC con GPU, o en Google Colab (gratis, con GPU):

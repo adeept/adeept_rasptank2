@@ -16,6 +16,8 @@ Aplicación del PC (estado, parada de emergencia, mover, **calibración de la
 odometría** manual o automática, simulación): `./scripts/app.sh` —
 [tools/app/README.md](tools/app/README.md).
 
+Prácticas para los alumnos: [docs/practicas](docs/practicas/README.md).
+
 Guía completa: **[ROS2.md](ROS2.md)**. Robot real: [docker/README.md](docker/README.md).
 Entrenar un modelo: [tools/yolo/README.md](tools/yolo/README.md).
 
