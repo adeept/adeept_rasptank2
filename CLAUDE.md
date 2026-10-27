@@ -20,6 +20,8 @@ en español; escribe en español. El código y sus comentarios, en inglés.
 - `ros2_ws/src/rasptank_alumno`: API `Robot` en español y ejemplos.
 - `tools/app/rasptank_app`: app PyQt5 del PC (estado, parada, mover, calibración, simulación).
 - `docker/`: ROS 2 en la Pi; `scripts/pi/camara_host.py`: cámara fuera de Docker.
+- `tools/windows/pixi.toml` (+ `pixi.lock`) y `scripts/*_windows.bat`: Windows con
+  RoboStack, ver WINDOWS.md. `scripts/tests.py`: tests en Linux y Windows.
 - `web/`, `examples/`, `Client/`: código original de Adeept (sin ROS), no tocar.
 
 ## Comandos
@@ -47,5 +49,8 @@ python3 -m flake8                       # estilo (.flake8)
   (test_description.py lo comprueba).
 - El código debe funcionar con Python 3.10 y OpenCV 4.5 (Ubuntu 22.04) y con
   versiones nuevas (RoboStack).
-- No versionar `ros2_ws/{build,install,log}`, datasets ni modelos (`*.onnx`, `*.pt`).
+- No versionar `ros2_ws/{build,install,log}`, datasets ni modelos (`*.onnx`, `*.pt`),
+  ni `.pixi/` ni `windows/`.
+- Todo el workspace es Python (mensajes estándar, paquetes ament_python): no
+  añadir mensajes propios ni código C++, o Windows necesitaría Visual Studio.
 - Dominios ROS: simulación 41 por defecto; cada robot real, uno distinto.

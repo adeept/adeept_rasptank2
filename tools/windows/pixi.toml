@@ -1,0 +1,24 @@
+# Entorno de ROS 2 Humble del RaspTank con RoboStack (conda), para Windows
+# (y también Linux, sin apt). Lo instala scripts\instalar_windows.bat.
+# Todo el workspace es Python: no hace falta Visual Studio ni compilador.
+[workspace]
+name = "rasptank"
+channels = ["robostack-humble", "conda-forge"]
+platforms = ["win-64", "linux-64"]
+
+[dependencies]
+python = ">=3.10"
+ros-humble-ros-base = "*"
+ros-humble-rviz2 = "*"
+ros-humble-xacro = "*"
+ros-humble-robot-state-publisher = "*"
+ros-humble-joint-state-publisher-gui = "*"
+ros-humble-vision-msgs = "*"
+ros-humble-teleop-twist-keyboard = "*"
+colcon-common-extensions = "*"
+setuptools = "<80"
+opencv = "*"
+numpy = "*"
+pyyaml = "*"
+pyqt = ">=5.15,<6"
+pytest = "*"

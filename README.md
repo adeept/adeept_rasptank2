@@ -18,6 +18,8 @@ odometría** manual o automática, simulación): `./scripts/app.sh` —
 
 Prácticas para los alumnos: [docs/practicas](docs/practicas/README.md).
 
+En **Windows**: `scripts\instalar_windows.bat` y `menu_rasptank.bat` — [WINDOWS.md](WINDOWS.md).
+
 Guía completa: **[ROS2.md](ROS2.md)**. Robot real: [docker/README.md](docker/README.md).
 Entrenar un modelo: [tools/yolo/README.md](tools/yolo/README.md).
 

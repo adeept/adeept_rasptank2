@@ -1,9 +1,10 @@
 """Main window of the RaspTank app: status, teleoperation, calibration, simulation."""
 import math
 import os
+import queue
 import signal
 import subprocess
-from pathlib import Path
+import threading
 
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont, QImage, QPixmap
@@ -14,7 +15,6 @@ from PyQt5.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGridLayout, QGr
 from . import status
 from .calib_page import CalibrationPage
 
-ROOT = Path(__file__).resolve().parents[3]
 POSES = ['plegado', 'buscar', 'pre_coger', 'cerrar', 'abrir', 'transportar', 'soltar']
 WORLDS = ['mision', 'linea', 'vacio', 'calibracion']
 
@@ -281,18 +281,39 @@ class MainWindow(QMainWindow):
     def start_sim(self):
         if self.sim_process is not None and self.sim_process.poll() is None:
             return
-        args = [str(ROOT / 'scripts' / 'sim.sh'), self.world.currentText()]
+        # the app runs with ROS 2 loaded (app.sh / app_windows.bat): launch directly
+        args = ['ros2', 'launch', 'rasptank_bringup', 'sim.launch.py',
+                f'world:={self.world.currentText()}']
         args += [f'{k}:={"true" if c.isChecked() else "false"}' for k, c in self.sim_options.items()]
         env = dict(os.environ, ROS_DOMAIN_ID=str(self.domain.value()))
         self.sim_log.appendPlainText('$ ' + ' '.join(args))
-        self.sim_process = subprocess.Popen(args, env=env, stdout=subprocess.PIPE,
-                                            stderr=subprocess.STDOUT, text=True, bufsize=1,
-                                            start_new_session=True)
-        os.set_blocking(self.sim_process.stdout.fileno(), False)
+        kwargs = {}
+        if os.name == 'nt':
+            kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs['start_new_session'] = True
+        try:
+            self.sim_process = subprocess.Popen(args, env=env, stdout=subprocess.PIPE,
+                                                stderr=subprocess.STDOUT, text=True, bufsize=1,
+                                                **kwargs)
+        except OSError as e:
+            self.sim_log.appendPlainText(f'No se puede lanzar: {e}')
+            return
+        lines = self.sim_lines = queue.Queue()
+        out = self.sim_process.stdout
+
+        def reader():
+            for line in out:
+                lines.put(line.rstrip())
+        threading.Thread(target=reader, daemon=True).start()
 
     def stop_sim(self):
         p = self.sim_process
-        if p is not None and p.poll() is None:
+        if p is None or p.poll() is not None:
+            return
+        if os.name == 'nt':
+            p.send_signal(signal.CTRL_BREAK_EVENT)
+        else:
             os.killpg(p.pid, signal.SIGINT)
 
     def _refresh_sim(self):
@@ -300,13 +321,9 @@ class MainWindow(QMainWindow):
         running = p is not None and p.poll() is None
         self.sim_start.setEnabled(not running and not self.real_robot())
         self.sim_stop.setEnabled(running)
-        if p is not None and p.stdout is not None:
-            try:
-                chunk = p.stdout.read()
-            except (OSError, ValueError):
-                chunk = None
-            if chunk:
-                self.sim_log.appendPlainText(chunk.rstrip())
+        lines = getattr(self, 'sim_lines', None)
+        while lines is not None and not lines.empty():
+            self.sim_log.appendPlainText(lines.get_nowait())
 
     def closeEvent(self, event):
         self.calibration.cancel()

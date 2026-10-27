@@ -8,4 +8,4 @@ __pycache__/
 runs/
 dataset*/
 .pixi/
-windows/
+/windows/

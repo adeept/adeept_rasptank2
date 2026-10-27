@@ -75,9 +75,11 @@ cd RaspTank2
 source scripts/ros_env.sh        # en cada terminal nuevo
 ```
 
-Los paquetes son Python puro (más un paquete de mensajes), así que también
-funcionan con ROS 2 Humble de [RoboStack](https://robostack.github.io/)
-(conda/pixi) en Windows, como el pack de RobotMK2.
+Los paquetes son Python puro (sin mensajes propios ni nada que compilar en C++),
+así que también funcionan en **Windows** con ROS 2 Humble de
+[RoboStack](https://robostack.github.io/) y Pixi, sin Visual Studio: ver
+[WINDOWS.md](WINDOWS.md). El mismo entorno sirve en Linux sin apt:
+`pixi install --manifest-path tools/windows/pixi.toml`.
 
 ## 3. Simulación
 
