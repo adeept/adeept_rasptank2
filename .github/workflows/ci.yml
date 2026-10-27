@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [master, 'claude/**']
+  pull_request:
+  workflow_dispatch:
+
+# A new commit cancels the previous run of the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    # Ubuntu 22.04 packages: Python 3.10 and OpenCV 4.5, as on the robot's Docker image
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    container: ros:humble-ros-base
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencias
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            python3-opencv python3-yaml python3-numpy python3-pytest python3-pyqt5 \
+            python3-flake8 python3-colcon-common-extensions \
+            ros-humble-xacro ros-humble-robot-state-publisher ros-humble-vision-msgs
+
+      - name: Estilo (flake8)
+        run: python3 -m flake8
+
+      - name: Compilar
+        run: ./scripts/build_ros2.sh
+
+      - name: Tests y misión simulada
+        run: ./scripts/test.sh --e2e
+
+      - name: Clasificar (simulación)
+        run: ./scripts/prueba_mision_sim.sh clasificar 700 sort:=true
+
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          manifest-path: tools/windows/pixi.toml
+          locked: true
+          cache: true
+
+      - name: Compilar
+        run: call scripts\compilar_windows.bat
+
+      - name: Tests y misión simulada
+        run: call scripts\tests_windows.bat --e2e
