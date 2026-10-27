@@ -4,10 +4,10 @@
 _rt_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 _rt_nounset=0
 [[ $- == *u* ]] && _rt_nounset=1 && set +u      # los setup.bash de ROS no soportan -u
-if [[ -z "${ROS_DISTRO:-}" && -f /opt/ros/humble/setup.bash ]]; then
+if [[ -z "${AMENT_PREFIX_PATH:-}" && -f /opt/ros/humble/setup.bash ]]; then
   source /opt/ros/humble/setup.bash
 fi
-if [[ -z "${ROS_DISTRO:-}" ]]; then
+if [[ -z "${AMENT_PREFIX_PATH:-}" ]]; then
   echo "ROS 2 Humble no encontrado: instala ros-humble-desktop o activa tu entorno RoboStack" >&2
 else
   [[ -f "$_rt_root/ros2_ws/install/setup.bash" ]] && source "$_rt_root/ros2_ws/install/setup.bash"

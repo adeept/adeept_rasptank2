@@ -3,6 +3,7 @@
 
     python3 scripts/tests.py            # unit tests of every package and the app
     python3 scripts/tests.py --e2e      # and the simulated mission (~1 min)
+    python3 scripts/tests.py --solo-e2e # only the simulated mission
 
 scripts/test.sh does the same on Linux; tests_windows.bat calls this one.
 """
@@ -72,6 +73,8 @@ def e2e(timeout=240):
 
 def main():
     failed = 0
+    if '--solo-e2e' in sys.argv:
+        return 1 if e2e() else 0
     for pkg in PACKAGES:
         failed |= pytest(ROOT / 'ros2_ws' / 'src' / pkg, 'test') != 0
     failed |= pytest(ROOT / 'tools' / 'app', 'tests', {'QT_QPA_PLATFORM': 'offscreen'}) != 0

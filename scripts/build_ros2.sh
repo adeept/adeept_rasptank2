@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 set +u
-if [[ -z "${ROS_DISTRO:-}" ]]; then
+if [[ -z "${AMENT_PREFIX_PATH:-}" ]]; then
   [[ -f /opt/ros/humble/setup.bash ]] || { echo "ROS 2 Humble no encontrado" >&2; exit 1; }
   source /opt/ros/humble/setup.bash
 fi

@@ -38,9 +38,11 @@ jobs:
         run: ./scripts/build_ros2.sh
 
       - name: Tests y misión simulada
+        timeout-minutes: 15
         run: ./scripts/test.sh --e2e
 
       - name: Clasificar (simulación)
+        timeout-minutes: 15
         run: ./scripts/prueba_mision_sim.sh clasificar 700 sort:=true
 
   windows:
@@ -61,5 +63,10 @@ jobs:
       - name: Compilar
         run: call scripts\compilar_windows.bat
 
-      - name: Tests y misión simulada
-        run: call scripts\tests_windows.bat --e2e
+      - name: Tests
+        timeout-minutes: 15
+        run: call scripts\tests_windows.bat
+
+      - name: Misión simulada
+        timeout-minutes: 15
+        run: call scripts\tests_windows.bat --solo-e2e
