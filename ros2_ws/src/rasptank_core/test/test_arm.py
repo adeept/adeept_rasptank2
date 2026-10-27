@@ -51,3 +51,12 @@ def test_lowered_gripper_reaches_the_floor():
 
 def test_joint_order():
     assert JOINTS[3] == 'gripper_joint' and len(JOINTS) == 5
+
+
+def test_arm_status_json():
+    from rasptank_core.arm import ArmStatus
+    s = ArmStatus('buscar', True, False)
+    back = ArmStatus.from_json(s.to_json())
+    assert (back.pose, back.moving, back.stopped, back.received) == ('buscar', True, False, True)
+    assert not ArmStatus().received
+    assert ArmStatus.from_json('garbage').pose == ''

@@ -132,3 +132,27 @@ class ArmGeometry:
         x += self.reach * math.cos(shoulder + elbow)
         z += self.reach * math.sin(shoulder + elbow)
         return x, z
+
+
+@dataclass
+class ArmStatus:
+    """What /arm/state says (std_msgs/String with JSON, no custom message:
+    the workspace builds without a C compiler, also on Windows)."""
+    pose: str = ''           # last named pose asked for ('' after joint commands)
+    moving: bool = False     # the servos are still going towards the command
+    stopped: bool = False    # emergency stop
+    received: bool = False   # False until the first message arrives
+
+    def to_json(self):
+        import json
+        return json.dumps({'pose': self.pose, 'moving': self.moving, 'stopped': self.stopped})
+
+    @classmethod
+    def from_json(cls, text):
+        import json
+        try:
+            d = json.loads(text)
+            return cls(str(d.get('pose', '')), bool(d.get('moving', False)),
+                       bool(d.get('stopped', False)), True)
+        except (ValueError, AttributeError):
+            return cls(received=True)

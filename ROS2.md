@@ -48,7 +48,6 @@ de modo que el detector y la misión son exactamente los del robot real.
 | Paquete | Qué contiene |
 |---|---|
 | `rasptank_core` | Lógica sin ROS: cinemática, odometría, brazo, visión, máquina de estados de la misión, rutas. Con tests. |
-| `rasptank_interfaces` | Mensajes `LineSensors` y `ArmState`. |
 | `rasptank_description` | URDF/xacro del tanque, el brazo y la cámara. `display.launch.py` para verlo en RViz. |
 | `rasptank_hw` | Nodos del hardware: `base_node`, `arm_node`, `sensors_node`, `camera_node` (driver real o `fake`), `motor_watchdog_node` y `governor_node` (seguridad). |
 | `rasptank_calibration` | Calibración de la odometría, manual o automática: `ros2 run rasptank_calibration calibrar`. |
@@ -357,10 +356,10 @@ parada de emergencia, mover, calibración y simulación. Ver
 | `/emergency_stop` | `std_msgs/Bool` (latched) | cualquiera → base, brazo, misión |
 | `/arm/pose` | `std_msgs/String` | postura con nombre → brazo |
 | `/arm/joint_command` | `sensor_msgs/JointState` | ángulos sueltos → brazo |
-| `/arm/state` | `rasptank_interfaces/ArmState` | brazo |
+| `/arm/state` | `std_msgs/String` (JSON: `pose`, `moving`, `stopped`) | brazo |
 | `/joint_states` | `sensor_msgs/JointState` | brazo (estimado: los servos no tienen realimentación) |
 | `/ultrasonic` | `sensor_msgs/Range` | sensores / simulador |
-| `/line_sensors` | `rasptank_interfaces/LineSensors` | sensores / simulador |
+| `/line_sensors` | `std_msgs/Int8MultiArray` (`[izq, centro, der]`, 1 = línea) | sensores / simulador |
 | `/battery` | `sensor_msgs/BatteryState` | sensores / simulador |
 | `/leds`, `/leds/state` | `std_msgs/ColorRGBA` | color de los LEDs → `signals_node` |
 | `/buzzer` | `std_msgs/String` | melodía → `signals_node` |

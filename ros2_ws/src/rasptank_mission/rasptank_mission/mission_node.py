@@ -5,7 +5,7 @@ Runs the state machine of rasptank_core.mission at `rate` Hz.
 Subscribes:
   /detections       vision_msgs/Detection2DArray  (detector_node)
   /odom             nav_msgs/Odometry
-  /arm/state        rasptank_interfaces/ArmState
+  /arm/state        std_msgs/String (JSON, rasptank_core.arm.ArmStatus)
   /emergency_stop   std_msgs/Bool                 True aborts the mission
 Publishes:
   /cmd_vel          geometry_msgs/Twist  (only while the mission runs)
@@ -41,12 +41,12 @@ from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray
 from visualization_msgs.msg import Marker, MarkerArray
 
+from rasptank_core.arm import ArmStatus
 from rasptank_core.geometry import Transform, quat_to_yaw, ray_to_plane_z
 from rasptank_core.kinematics import Pose2D
 from rasptank_core.mission import (APROXIMAR_CUBO, BUSCAR_CUBO, ESPERA, FALLO, FIN, Mission,
                                    MissionInput, MissionParams, Target)
 from rasptank_core.sorting import Sorter
-from rasptank_interfaces.msg import ArmState
 
 IDLE = (ESPERA, FIN, FALLO)
 
@@ -76,7 +76,7 @@ class MissionNode(Node):
         self.pose = Pose2D()
         self.cube = None
         self.goal = None
-        self.arm = ArmState()
+        self.arm = ArmStatus()
         self.sent_pose = None
         self.last_state = None
         self.was_running = False
@@ -90,7 +90,7 @@ class MissionNode(Node):
         self.marker_pub = self.create_publisher(MarkerArray, 'mission/markers', 2)
         self.create_subscription(Detection2DArray, 'detections', self.on_detections, 10)
         self.create_subscription(Odometry, 'odom', self.on_odom, 10)
-        self.create_subscription(ArmState, 'arm/state', self.on_arm, latched)
+        self.create_subscription(String, 'arm/state', self.on_arm, latched)
         self.create_subscription(Bool, 'emergency_stop', self.on_emergency, latched)
         self.create_service(Trigger, 'mission/start', self.on_start)
         self.create_service(Trigger, 'mission/stop', self.on_stop)
@@ -106,7 +106,7 @@ class MissionNode(Node):
 
     def _autostart(self):
         # wait until the arm node is up, so the first pose is not lost
-        if self.arm.header.stamp.sec == 0 and self.arm.header.stamp.nanosec == 0:
+        if not self.arm.received:
             return
         self._auto_timer.cancel()
         self.mission.start()
@@ -120,7 +120,7 @@ class MissionNode(Node):
                            quat_to_yaw(q.x, q.y, q.z, q.w))
 
     def on_arm(self, msg):
-        self.arm = msg
+        self.arm = ArmStatus.from_json(msg.data)
 
     def on_emergency(self, msg):
         if msg.data and self.mission.state not in IDLE:

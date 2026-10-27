@@ -26,11 +26,11 @@ from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from sensor_msgs.msg import BatteryState, JointState, Range
-from std_msgs.msg import ColorRGBA, String
+from std_msgs.msg import ColorRGBA, Int8MultiArray, String
 from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray
 
-from rasptank_interfaces.msg import ArmState, LineSensors
+from rasptank_core.arm import ArmStatus
 
 ARTICULACIONES = ['shoulder_joint', 'elbow_joint', 'wrist_roll_joint', 'gripper_joint',
                   'camera_tilt_joint']
@@ -91,8 +91,10 @@ class Robot:
         n.create_subscription(Odometry, 'odom', lambda m: self._set('_odom', m), 10)
         n.create_subscription(Range, 'ultrasonic', lambda m: self._set('_range', m),
                               qos_profile_sensor_data)
-        n.create_subscription(LineSensors, 'line_sensors', lambda m: self._set('_line', m), 10)
-        n.create_subscription(ArmState, 'arm/state', lambda m: self._set('_arm', m), latched)
+        n.create_subscription(Int8MultiArray, 'line_sensors',
+                              lambda m: self._set('_line', tuple(bool(v) for v in m.data)), 10)
+        n.create_subscription(String, 'arm/state',
+                              lambda m: self._set('_arm', ArmStatus.from_json(m.data)), latched)
         n.create_subscription(BatteryState, 'battery', lambda m: self._set('_battery', m), 10)
         n.create_subscription(Detection2DArray, 'detections', self._on_detections, 10)
         # se repite la orden de velocidad para que no salte el "watchdog" de la base
@@ -225,7 +227,7 @@ class Robot:
         """(izquierda, centro, derecha): True si ese sensor ve la línea negra."""
         with self._lock:
             m = self._line
-        return (m.left, m.middle, m.right) if m is not None else (False, False, False)
+        return m if m is not None and len(m) == 3 else (False, False, False)
 
     def bateria(self):
         """Voltaje de la batería."""

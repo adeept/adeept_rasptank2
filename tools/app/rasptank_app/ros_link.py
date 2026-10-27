@@ -17,10 +17,10 @@ from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from sensor_msgs.msg import BatteryState, CompressedImage, JointState, Range
-from std_msgs.msg import Bool, String, UInt32
+from std_msgs.msg import Bool, Int8MultiArray, String, UInt32
 
+from rasptank_core.arm import ArmStatus
 from rasptank_core.geometry import quat_to_yaw
-from rasptank_interfaces.msg import ArmState, LineSensors
 
 from .status import Snapshot
 
@@ -50,12 +50,12 @@ class RosLink:
         sub(BatteryState, 'battery', lambda m: self._set(voltage=m.voltage,
                                                          battery_pct=m.percentage), 10)
         sub(Range, 'ultrasonic', lambda m: self._set(distance=m.range), qos_profile_sensor_data)
-        sub(LineSensors, 'line_sensors', lambda m: self._set(line=(m.left, m.middle, m.right)), 10)
+        sub(Int8MultiArray, 'line_sensors', lambda m: self._set(line=tuple(bool(v) for v in m.data)),
+            10)
         sub(Odometry, 'odom', lambda m: self._set(pose=_pose(m)), 10)
         sub(Odometry, 'sim/ground_truth', lambda m: self._set(truth=_pose(m)), 10)
         sub(String, 'mission/state', lambda m: self._set(mission=m.data), LATCHED)
-        sub(ArmState, 'arm/state', lambda m: self._set(arm=m.pose + (' (moviendo)' if m.moving
-                                                                     else '')), LATCHED)
+        sub(String, 'arm/state', self._on_arm, LATCHED)
         sub(Bool, 'governor/active', lambda m: self._set(governor=m.data), 10)
         sub(CompressedImage, 'camera/image/compressed', self._on_image, qos_profile_sensor_data)
         self.stop_pub = n.create_publisher(Bool, 'emergency_stop', LATCHED)
@@ -92,6 +92,10 @@ class RosLink:
         with self.lock:
             for k, v in values.items():
                 setattr(self.snap, k, v)
+
+    def _on_arm(self, msg):
+        a = ArmStatus.from_json(msg.data)
+        self._set(arm=(a.pose or 'articulaciones') + (' (moviendo)' if a.moving else ''))
 
     def _on_image(self, msg):
         now = time.monotonic()

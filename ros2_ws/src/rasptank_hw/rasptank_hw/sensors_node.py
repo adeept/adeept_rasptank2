@@ -2,7 +2,7 @@
 
 Publishes:
   /ultrasonic     sensor_msgs/Range               (`max_range` = nothing ahead)
-  /line_sensors   rasptank_interfaces/LineSensors
+  /line_sensors   std_msgs/Int8MultiArray          [left, middle, right], 1 = on the line
   /battery        sensor_msgs/BatteryState
 
 Only for the Raspberry Pi: the simulator (rasptank_sim/world_node)
@@ -16,8 +16,8 @@ import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState, Range
+from std_msgs.msg import Int8MultiArray
 
-from rasptank_interfaces.msg import LineSensors
 
 from .drivers import Ads7830Battery, GpioLineSensors, GpioUltrasonic
 
@@ -43,7 +43,7 @@ class SensorsNode(Node):
         self.voltages = deque(maxlen=10)
 
         self.range_pub = self.create_publisher(Range, 'ultrasonic', 10)
-        self.line_pub = self.create_publisher(LineSensors, 'line_sensors', 10)
+        self.line_pub = self.create_publisher(Int8MultiArray, 'line_sensors', 10)
         self.battery_pub = self.create_publisher(BatteryState, 'battery', 10)
         self.create_timer(1.0 / p('ultrasonic_rate', 10.0).value, self.read_ultrasonic)
         self.create_timer(1.0 / p('line_rate', 20.0).value, self.read_line)
@@ -65,11 +65,7 @@ class SensorsNode(Node):
         self.range_pub.publish(msg)
 
     def read_line(self):
-        left, middle, right = self.line.read()
-        msg = LineSensors(left=left, middle=middle, right=right)
-        msg.header.stamp = self.stamp()
-        msg.header.frame_id = 'line_sensor_link'
-        self.line_pub.publish(msg)
+        self.line_pub.publish(Int8MultiArray(data=[int(v) for v in self.line.read()]))
 
     def read_battery(self):
         if self.battery is None:

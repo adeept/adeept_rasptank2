@@ -6,7 +6,7 @@ Subscribes:
   /emergency_stop      std_msgs/Bool          True holds the servos
 Publishes:
   /joint_states        sensor_msgs/JointState  estimated servo positions
-  /arm/state           rasptank_interfaces/ArmState
+  /arm/state           std_msgs/String     JSON {pose, moving, stopped} (latched)
 
 The servos have no feedback: the published position moves towards the
 command at `max_speed` (rad/s), and the servos follow that same profile,
@@ -24,8 +24,7 @@ from rclpy.qos import DurabilityPolicy, QoSProfile
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Bool, String
 
-from rasptank_core.arm import JOINTS, ArmModel, parse_poses, servos_from_params
-from rasptank_interfaces.msg import ArmState
+from rasptank_core.arm import JOINTS, ArmModel, ArmStatus, parse_poses, servos_from_params
 
 from .drivers import FakeServos, PcaServos
 
@@ -70,7 +69,7 @@ class ArmNode(Node):
 
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.joint_pub = self.create_publisher(JointState, 'joint_states', 10)
-        self.state_pub = self.create_publisher(ArmState, 'arm/state', latched)
+        self.state_pub = self.create_publisher(String, 'arm/state', latched)
         self.create_subscription(String, 'arm/pose', self.on_pose, 10)
         self.create_subscription(JointState, 'arm/joint_command', self.on_joints, 10)
         self.create_subscription(Bool, 'emergency_stop', self.on_stop, latched)
@@ -118,9 +117,7 @@ class ArmNode(Node):
         state = (self.pose_name, self.arm.moving(), self.stopped)
         if state != self._last_state:
             self._last_state = state
-            msg = ArmState(pose=state[0], moving=state[1], stopped=state[2])
-            msg.header.stamp = js.header.stamp
-            self.state_pub.publish(msg)
+            self.state_pub.publish(String(data=ArmStatus(*state).to_json()))
 
     def destroy_node(self):
         self.servos.close()

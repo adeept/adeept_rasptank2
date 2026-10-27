@@ -13,7 +13,7 @@ from the true pose and the URDF frames (TF from base_footprint):
 
   /camera/image/compressed  /camera/camera_info  synthetic camera
   /ultrasonic               sensor_msgs/Range
-  /line_sensors             rasptank_interfaces/LineSensors
+  /line_sensors             std_msgs/Int8MultiArray [left, middle, right]
   /battery                  sensor_msgs/BatteryState (constant)
   /sim/markers              visualization_msgs/MarkerArray (RViz)
   /sim/cube_pose            geometry_msgs/PoseStamped
@@ -38,13 +38,12 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from rclpy.time import Time
 from sensor_msgs.msg import BatteryState, CameraInfo, CompressedImage, JointState, Range
-from std_msgs.msg import Bool, ColorRGBA, Float32MultiArray, String
+from std_msgs.msg import Bool, ColorRGBA, Float32MultiArray, Int8MultiArray, String
 from tf2_ros import Buffer, TransformException, TransformListener
 from visualization_msgs.msg import Marker, MarkerArray
 
 from rasptank_core.geometry import Transform, yaw_to_quat
 from rasptank_core.vision import intrinsics_from_hfov
-from rasptank_interfaces.msg import LineSensors
 
 from .motion import MotorErrors, TrueMotion
 from .render import Renderer
@@ -90,7 +89,7 @@ class WorldNode(Node):
         self.image_pub = self.create_publisher(CompressedImage, 'camera/image/compressed', 2)
         self.info_pub = self.create_publisher(CameraInfo, 'camera/camera_info', 2)
         self.range_pub = self.create_publisher(Range, 'ultrasonic', 10)
-        self.line_pub = self.create_publisher(LineSensors, 'line_sensors', 10)
+        self.line_pub = self.create_publisher(Int8MultiArray, 'line_sensors', 10)
         self.battery_pub = self.create_publisher(BatteryState, 'battery', 10)
         self.marker_pub = self.create_publisher(MarkerArray, 'sim/markers', 2)
         self.cube_pub = self.create_publisher(PoseStamped, 'sim/cube_pose', 10)
@@ -244,10 +243,7 @@ class WorldNode(Node):
         for offset in (self.line_spacing, 0.0, -self.line_spacing):   # left, middle, right
             x, y, _ = T.apply([0.0, offset, 0.0])
             values.append(self.world.on_line(x, y))
-        msg = LineSensors(left=values[0], middle=values[1], right=values[2])
-        msg.header.stamp = self.stamp()
-        msg.header.frame_id = 'line_sensor_link'
-        self.line_pub.publish(msg)
+        self.line_pub.publish(Int8MultiArray(data=[int(v) for v in values]))
 
     def publish_battery(self):
         msg = BatteryState(voltage=8.0, percentage=0.83, present=True)
